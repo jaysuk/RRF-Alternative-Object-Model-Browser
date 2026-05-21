@@ -1,0 +1,2231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duet3D Object Model Viewer</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --surface: #252535;
+    --surface2: #2e2e45;
+    --border: #3d3d5c;
+    --text: #cdd6f4;
+    --text-dim: #7f849c;
+    --accent: #89b4fa;
+    --accent2: #cba6f7;
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --red: #f38ba8;
+    --teal: #94e2d5;
+    --orange: #fab387;
+    --pink: #f5c2e7;
+    --header-h: 54px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .header-sep { flex: 1; }
+
+  .viewer-version {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    opacity: 0.7;
+  }
+
+  select, input[type=text] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 13px;
+    outline: none;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--accent); }
+  select { cursor: pointer; }
+
+  #branchSelect { min-width: 160px; }
+  #searchBox { width: 220px; }
+
+  .btn {
+    background: var(--accent);
+    color: #1e1e2e;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  #treePanel {
+    width: 380px;
+    min-width: 200px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  #treeScroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 4px;
+  }
+
+  #detailPanel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  #statusBar {
+    height: 28px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  #dsf-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+  }
+  #dsf-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+  #dsf-dot.ok { background: var(--green); }
+  #dsf-dot.none { background: var(--text-dim); }
+  #dsf-dot.error { background: var(--red); }
+
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(30,30,46,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+    font-size: 15px;
+  }
+  #loadingOverlay.hidden { display: none; }
+
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── tree nodes ── */
+  .tree-node { user-select: none; }
+
+  .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 4px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.4;
+    position: relative;
+  }
+  .tree-row:hover { background: var(--surface2); }
+  .tree-row.selected { background: rgba(137,180,250,0.15); }
+
+  .tree-indent { display: inline-block; width: 16px; flex-shrink: 0; }
+  .tree-toggle { width: 16px; flex-shrink: 0; font-size: 10px; color: var(--text-dim); text-align: center; }
+  .tree-icon { font-size: 13px; flex-shrink: 0; }
+
+  .tree-name {
+    font-weight: 500;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tree-name.enum-val { color: var(--green); font-weight: 400; }
+
+  .tree-badge {
+    font-size: 10px;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+  .badge-class { background: rgba(137,180,250,0.2); color: var(--accent); }
+  .badge-enum { background: rgba(166,227,161,0.2); color: var(--green); }
+  .badge-collection { background: rgba(148,226,213,0.2); color: var(--teal); }
+  .badge-dict { background: rgba(250,179,135,0.2); color: var(--orange); }
+
+  .tree-children { padding-left: 16px; }
+  .tree-children.collapsed { display: none; }
+
+  .dim { color: var(--text-dim); font-size: 12px; margin-left: auto; padding-left: 8px; flex-shrink: 0; }
+
+  /* tree tooltip for description */
+  .tree-desc-tooltip {
+    display: none;
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text);
+    max-width: 300px;
+    z-index: 50;
+    pointer-events: none;
+    white-space: normal;
+    line-height: 1.5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .tree-row:hover .tree-desc-tooltip { display: block; }
+
+  /* ── detail panel ── */
+  #detailPanel h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .detail-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+
+  .om-path {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .om-path-code {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--yellow);
+    background: rgba(249,226,175,0.1);
+    border: 1px solid rgba(249,226,175,0.2);
+    border-radius: 4px;
+    padding: 2px 8px;
+    user-select: all;
+  }
+
+  .class-description {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 16px;
+  }
+  .class-description .remarks {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .tag {
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-weight: 500;
+  }
+  .tag-class { background: rgba(137,180,250,0.2); color: var(--accent); }
+  .tag-enum { background: rgba(166,227,161,0.2); color: var(--green); }
+  .tag-readonly { background: rgba(203,166,247,0.2); color: var(--accent2); }
+  .tag-nullable { background: rgba(249,226,175,0.2); color: var(--yellow); }
+  .tag-sbc-only { background: rgba(250,179,135,0.2); color: var(--orange); }
+  .tag-sbc-also { background: rgba(148,226,213,0.15); color: var(--teal); }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 18px 0 8px;
+  }
+
+  .prop-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .prop-table th {
+    text-align: left;
+    padding: 6px 10px;
+    background: var(--surface);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+  }
+  .prop-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(61,61,92,0.4);
+    vertical-align: top;
+  }
+  .prop-table tr:last-child td { border-bottom: none; }
+  .prop-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+  .prop-name { font-weight: 500; color: var(--text); font-family: monospace; }
+  .prop-name.is-readonly { color: var(--accent2); }
+  .prop-type { color: var(--teal); font-family: monospace; }
+  .prop-default { color: var(--yellow); font-family: monospace; font-size: 12px; }
+  .prop-link { color: var(--accent); cursor: pointer; text-decoration: underline dotted; }
+  .prop-link:hover { color: var(--pink); }
+
+  .prop-desc-cell {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .prop-desc-cell .remarks {
+    margin-top: 2px;
+    font-style: italic;
+    opacity: 0.8;
+  }
+
+  /* Inline enum value pills shown under the type */
+  .enum-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 5px;
+  }
+  .enum-pip {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--green);
+    background: rgba(166,227,161,0.1);
+    border: 1px solid rgba(166,227,161,0.25);
+    border-radius: 3px;
+    padding: 1px 6px;
+    cursor: default;
+  }
+  .enum-pip[title] { cursor: help; }
+
+  /* breadcrumb nav */
+  .detail-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .detail-breadcrumb .bc-item {
+    cursor: pointer;
+    color: var(--accent);
+    text-decoration: underline dotted;
+  }
+  .detail-breadcrumb .bc-item:hover { color: var(--pink); }
+  .detail-breadcrumb .bc-sep { color: var(--border); margin: 0 2px; }
+  .detail-breadcrumb .bc-current { color: var(--text-dim); cursor: default; text-decoration: none; }
+
+  /* clickable/expandable row in prop table */
+  tr.prop-row-drilldown { cursor: pointer; }
+  tr.prop-row-drilldown:hover td { background: rgba(137,180,250,0.07); }
+  .prop-drilldown-chevron {
+    width: 14px;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .prop-name-cell { display: flex; align-items: center; }
+  .dtoggle { width: 14px; font-size: 9px; color: var(--text-dim); text-align: center; flex-shrink: 0; }
+  tr.expanded-child td { border-left: 2px solid rgba(137,180,250,0.2); }
+
+  .placeholder {
+    color: var(--text-dim);
+    font-size: 14px;
+    text-align: center;
+    margin-top: 60px;
+    line-height: 1.8;
+  }
+
+  .error-box {
+    background: rgba(243,139,168,0.1);
+    border: 1px solid rgba(243,139,168,0.3);
+    border-radius: 8px;
+    padding: 16px;
+    color: var(--red);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 20px;
+  }
+
+  .hl { background: rgba(249,226,175,0.3); border-radius: 2px; color: var(--yellow); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  #resizer {
+    width: 5px;
+    background: transparent;
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  #resizer:hover, #resizer.dragging { background: var(--accent); }
+
+  /* copy-path button */
+  .copy-path-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 4px;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    vertical-align: middle;
+  }
+  .copy-path-btn:hover { opacity: 1; color: var(--accent); }
+  .copy-path-tooltip {
+    position: absolute;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--green);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Duet3D Object Model Viewer</h1>
+  <span class="viewer-version" id="viewerVersion"></span>
+  <span id="refControls" style="display:contents">
+    <label for="branchSelect" style="font-size:12px;color:var(--text-dim)">Branch/Tag:</label>
+    <select id="branchSelect" disabled>
+      <option value="">Loading...</option>
+    </select>
+    <button class="btn" id="loadBtn" disabled>Load</button>
+  </span>
+  <div class="header-sep"></div>
+  <span id="refOnlyControls" style="display:contents">
+    <button class="btn-ghost" id="expandAllBtn" disabled>Expand All</button>
+    <button class="btn-ghost" id="collapseAllBtn" disabled>Collapse All</button>
+    <div style="position:relative;display:flex;align-items:center">
+      <input type="text" id="searchBox" placeholder="Search properties..." disabled style="padding-right:28px">
+      <button id="searchClear" title="Clear search" style="position:absolute;right:6px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;line-height:1;padding:0;display:none">×</button>
+    </div>
+  </span>
+</header>
+
+<div id="main">
+  <div id="treePanel">
+    <div id="treeScroll">
+      <div class="placeholder" style="margin-top:40px">Select a branch and click Load</div>
+    </div>
+  </div>
+  <div id="resizer"></div>
+  <div id="detailPanel">
+    <div class="placeholder">
+      Select an item in the tree to view details.<br>
+      <span style="font-size:12px;color:var(--text-dim)">Use the branch selector above to switch RRF releases.</span>
+    </div>
+  </div>
+</div>
+
+<div id="statusBar">
+  <span id="statusText">Not loaded</span>
+  <span id="statusCount"></span>
+  <div id="dsf-indicator">
+    <div id="dsf-dot" class="none"></div>
+    <span id="dsf-label" style="font-size:11px">DSF descriptions: —</span>
+  </div>
+</div>
+
+<div id="loadingOverlay" class="hidden">
+  <div class="spinner"></div>
+  <span id="loadingMsg">Loading...</span>
+</div>
+
+<script>
+// ────────────────────────────────────────────────────────────
+// Constants
+// ────────────────────────────────────────────────────────────
+const VIEWER_VERSION = '2.3.0';
+const OM_REPO   = 'Duet3D/ObjectModel';
+const DSF_REPO  = 'Duet3D/DuetSoftwareFramework';
+const OM_RAW    = 'https://raw.githubusercontent.com/' + OM_REPO;
+const DSF_RAW   = 'https://raw.githubusercontent.com/' + DSF_REPO;
+const OM_API    = 'https://api.github.com/repos/' + OM_REPO;
+const DSF_API   = 'https://api.github.com/repos/' + DSF_REPO;
+const DSF_OM_PATH = 'src/DuetAPI/ObjectModel';
+
+// ────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────
+let model = { classes: {}, enums: {} };
+let descriptions = {};
+let selectedNode = null;
+let searchTerm = '';
+let lastDetailType = null;  // 'class' | 'enum'
+let lastDetailKey = null;   // class or enum name currently shown in detail panel
+let navStack = [];           // [{type, key}] — breadcrumb history
+
+
+// ────────────────────────────────────────────────────────────
+// Utilities
+// ────────────────────────────────────────────────────────────
+function loading(show, msg = 'Loading...') {
+  const el = document.getElementById('loadingOverlay');
+  document.getElementById('loadingMsg').textContent = msg;
+  el.classList.toggle('hidden', !show);
+}
+
+function status(text, count = '') {
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusCount').textContent = count;
+}
+
+async function fetchText(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${url}`);
+  return r.text();
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url, { headers: { Accept: 'application/vnd.github.v3+json' } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${url}`);
+  return r.json();
+}
+
+async function fetchTextOpt(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return r.text();
+  } catch { return null; }
+}
+
+// ────────────────────────────────────────────────────────────
+// GitHub API
+// ────────────────────────────────────────────────────────────
+async function loadBranches() {
+  try {
+    loading(true, 'Fetching branches and tags...');
+    const [branches, tags] = await Promise.all([
+      fetchJSON(`${OM_API}/branches?per_page=100`),
+      fetchJSON(`${OM_API}/tags?per_page=100`)
+    ]);
+    const sel = document.getElementById('branchSelect');
+    sel.innerHTML = '';
+
+    if (branches.length) {
+      const og = document.createElement('optgroup');
+      og.label = 'Branches';
+      branches.forEach(b => {
+        const o = document.createElement('option');
+        o.value = b.name;
+        o.textContent = b.name;
+        if (b.name === 'v3.6-dev' || b.name === 'master' || b.name === 'main') o.selected = true;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    }
+    if (tags.length) {
+      const og = document.createElement('optgroup');
+      og.label = 'Tags';
+      tags.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+      tags.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.name;
+        o.textContent = t.name;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    }
+
+    sel.disabled = false;
+    document.getElementById('loadBtn').disabled = false;
+    loading(false);
+  } catch (e) {
+    loading(false);
+    showError('Failed to fetch branches: ' + e.message +
+      '\n\nNote: GitHub API has rate limits. If you see 403, wait a minute and try again.');
+  }
+}
+
+async function fetchOMSourceFiles(ref) {
+  const tree = await fetchJSON(`${OM_API}/git/trees/${encodeURIComponent(ref)}?recursive=1`);
+  return tree.tree
+    .filter(f => f.type === 'blob' && f.path.startsWith('src/') && f.path.endsWith('.ts'))
+    .map(f => f.path);
+}
+
+async function fetchDSFSourceFiles(ref) {
+  const tree = await fetchJSON(`${DSF_API}/git/trees/${encodeURIComponent(ref)}?recursive=1`);
+  return tree.tree
+    .filter(f => f.type === 'blob' &&
+      f.path.startsWith(DSF_OM_PATH + '/') &&
+      f.path.endsWith('.cs'))
+    .map(f => f.path);
+}
+
+// ────────────────────────────────────────────────────────────
+// DSF branch mapping
+// Tries to find a matching DSF branch/tag for a given OM ref.
+// Strategy: match v3.6-dev → v3.6-dev, v3.6.3 → v3.6-dev (latest dev for that minor),
+// or fall back to the latest dev branch numerically.
+// ────────────────────────────────────────────────────────────
+let dsfRefs = null;
+
+async function getDSFRefs() {
+  if (dsfRefs) return dsfRefs;
+  const [branches, tags] = await Promise.all([
+    fetchJSON(`${DSF_API}/branches?per_page=100`),
+    fetchJSON(`${DSF_API}/tags?per_page=100`)
+  ]);
+  dsfRefs = {
+    branches: branches.map(b => b.name),
+    tags: tags.map(t => t.name)
+  };
+  return dsfRefs;
+}
+
+async function findDSFRef(omRef) {
+  const refs = await getDSFRefs();
+  const all = [...refs.branches, ...refs.tags];
+
+  // Exact match first
+  if (all.includes(omRef)) return omRef;
+
+  // Extract version: v3.6-dev → "3.6", v3.6.3 → "3.6", v3.5.4 → "3.5"
+  const verMatch = omRef.match(/v?(\d+\.\d+)/);
+  if (!verMatch) return null;
+  const minorVer = verMatch[1]; // e.g. "3.6"
+
+  // Prefer matching dev branch: v3.6-dev
+  const devBranch = `v${minorVer}-dev`;
+  if (refs.branches.includes(devBranch)) return devBranch;
+
+  // Prefer matching stable tag with highest patch
+  const matchingTags = refs.tags
+    .filter(t => t.startsWith(`v${minorVer}.`) || t === `v${minorVer}`)
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  if (matchingTags.length) return matchingTags[0];
+
+  return null;
+}
+
+// ────────────────────────────────────────────────────────────
+// DSF C# XML doc parser
+// ────────────────────────────────────────────────────────────
+function pascalToCamel(s) {
+  if (!s) return s;
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+function extractXmlTag(text, tag) {
+  const re = new RegExp('<' + tag + '>([\\s\\S]*?)<\\/' + tag + '>', 'i');
+  const m = text.match(re);
+  if (!m) return null;
+  return m[1].replace(/\s+/g, ' ').trim();
+}
+
+function parseDSFFile(src) {
+  const result = {};
+  const lines = src.split('\n');
+
+  // Build a flat list of "tokens": each is either a doc-block or a code line,
+  // with blank/non-doc lines stripped out so we can look ahead cleanly.
+  // We process by scanning for doc-comment runs then peeking ahead past
+  // attributes to the actual declaration.
+
+  // First pass: for each line record its trimmed content and whether it's a doc line.
+  // Then process runs of doc lines followed by code lines.
+
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+
+    // Collect a run of doc-comment lines
+    if (trimmed.startsWith('///')) {
+      const docParts = [];
+      while (i < lines.length && lines[i].trim().startsWith('///')) {
+        docParts.push(lines[i].trim().replace(/^\/\/\/\s?/, ''));
+        i++;
+      }
+      const docBlock = docParts.join(' ');
+      const summary = extractXmlTag(docBlock, 'summary');
+      const remarks = extractXmlTag(docBlock, 'remarks');
+      if (!summary) continue;
+
+      // Skip blank lines and attribute lines (start with [ after trimming),
+      // but capture [SbcProperty(...)] if present.
+      let j = i;
+      let sbcProperty = null; // null = not marked, true = SBC+standalone, false = SBC only
+      while (j < lines.length) {
+        const t = lines[j].trim();
+        if (t === '') { j++; continue; }
+        if (t.startsWith('[')) {
+          const sbcM = t.match(/^\[SbcProperty\(\s*(true|false)\s*\)\]/);
+          if (sbcM) sbcProperty = sbcM[1] === 'true';
+          j++; continue;
+        }
+        break;
+      }
+      if (j >= lines.length) continue;
+
+      // Now look at up to 3 lines starting at j for the declaration
+      // (property opening brace may be on next line)
+      const declBlock = lines.slice(j, j + 3).map(l => l.trim()).join(' ');
+
+      // Class declaration
+      const classMatch = declBlock.match(/^public\s+(?:(?:partial|abstract|sealed|static)\s+)*class\s+(\w+)/);
+      if (classMatch) {
+        const name = classMatch[1];
+        if (!result[name]) result[name] = {};
+        result[name].__class__ = { summary, remarks };
+        continue;
+      }
+
+      // Enum declaration
+      const enumMatch = declBlock.match(/^public\s+enum\s+(\w+)/);
+      if (enumMatch) {
+        const name = enumMatch[1];
+        if (!result[name]) result[name] = {};
+        result[name].__class__ = { summary, remarks };
+        continue;
+      }
+
+      // Property declaration: "public [modifiers] Type PropName" followed by { or =>
+      // Type can include ? < > [ ] ,
+      const propMatch = declBlock.match(/^public\s+(?:(?:static|virtual|override|new|readonly)\s+)*[\w?<>[\],\s]+?\s+(\w+)\s*(?:\{|=>)/);
+      if (propMatch) {
+        const propName = propMatch[1];
+        if (propName === 'class' || propName === 'enum') { continue; }
+        // Find enclosing type by scanning backwards from j
+        const enclosing = findEnclosingType(lines, j);
+        if (enclosing) {
+          if (!result[enclosing]) result[enclosing] = {};
+          const entry = { summary, remarks };
+          if (sbcProperty !== null) entry.sbcProperty = sbcProperty;
+          result[enclosing][pascalToCamel(propName)] = entry;
+        }
+        continue;
+      }
+
+      // Enum member: just an identifier optionally followed by = number and comma
+      // e.g. "Off," or "Off" or "BlTouch = 9,"
+      const enumMemberMatch = declBlock.match(/^(\w+)\s*(?:=\s*-?\d+)?\s*,?(?:\s|$)/);
+      if (enumMemberMatch) {
+        const memberName = enumMemberMatch[1];
+        // Must not look like a keyword or type
+        if (/^(public|private|protected|internal|static|readonly|namespace|using|return|void|class|enum|if|for|new)$/.test(memberName)) {
+          continue;
+        }
+        const enclosing = findEnclosingType(lines, j);
+        if (enclosing) {
+          if (!result[enclosing]) result[enclosing] = {};
+          // Store under both camelCase and original for robust lookup
+          result[enclosing][pascalToCamel(memberName)] = { summary };
+          result[enclosing][memberName] = { summary };
+        }
+      }
+
+      continue;
+    }
+
+    i++;
+  }
+
+  return result;
+}
+
+// Scan backwards from lineIndex to find the name of the enclosing class or enum.
+// Tracks brace depth: every { increases depth, every } decreases it.
+// When depth goes to 0 (we found the opening brace of our scope), check
+// the lines just before it for a class/enum declaration.
+function findEnclosingType(lines, fromLine) {
+  let depth = 0;
+  for (let i = fromLine - 1; i >= 0; i--) {
+    const t = lines[i].trim();
+    // Count braces right-to-left on this line
+    for (let c = t.length - 1; c >= 0; c--) {
+      if (t[c] === '}') depth++;
+      else if (t[c] === '{') {
+        if (depth > 0) { depth--; }
+        else {
+          // This { opens our scope — find the declaration on this or preceding lines
+          for (let k = i; k >= Math.max(0, i - 4); k--) {
+            const decl = lines[k].trim();
+            const cm = decl.match(/(?:public|internal|private)\s+(?:(?:partial|abstract|sealed|static)\s+)*class\s+(\w+)/);
+            if (cm) return cm[1];
+            const em = decl.match(/(?:public|internal|private)\s+enum\s+(\w+)/);
+            if (em) return em[1];
+          }
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function mergeDSFDocs(target, parsed) {
+  for (const [name, props] of Object.entries(parsed)) {
+    if (!target[name]) target[name] = {};
+    Object.assign(target[name], props);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Description lookup helpers
+// ────────────────────────────────────────────────────────────
+function getClassDesc(className) {
+  return descriptions[className]?.__class__ || null;
+}
+
+function getPropDesc(className, propName) {
+  // Try exact camelCase prop name, then PascalCase
+  const d = descriptions[className];
+  if (!d) return null;
+  return d[propName] || d[propName.charAt(0).toUpperCase() + propName.slice(1)] || null;
+}
+
+function getEnumMemberDesc(enumName, memberName) {
+  const d = descriptions[enumName];
+  if (!d) return null;
+  return d[memberName] || d[pascalToCamel(memberName)] || null;
+}
+
+// ────────────────────────────────────────────────────────────
+// TypeScript parser (unchanged from v1)
+// ────────────────────────────────────────────────────────────
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ''))
+    .replace(/\/\/[^\n]*/g, '');
+}
+
+function parseOMFile(src, filePath) {
+  const clean = stripComments(src);
+  const classes = {};
+  const enums = {};
+
+  const enumRe = /export\s+(?:const\s+)?enum\s+(\w+)\s*\{([^}]*)\}/g;
+  let m;
+  while ((m = enumRe.exec(clean)) !== null) {
+    const name = m[1];
+    const body = m[2];
+    const members = [];
+    const memberRe = /(\w+)\s*(?:=\s*([^,\n}]+))?/g;
+    let mm;
+    while ((mm = memberRe.exec(body)) !== null) {
+      if (!mm[1]) continue;
+      members.push({ key: mm[1], value: mm[2] ? mm[2].trim() : undefined });
+    }
+    if (members.length > 0) enums[name] = { name, members, file: filePath };
+  }
+
+  const classRe = /export\s+class\s+(\w+)(?:\s+extends\s+(\w+))?\s*\{/g;
+  while ((m = classRe.exec(clean)) !== null) {
+    const name = m[1];
+    const parent = m[2] || null;
+    const startIdx = m.index + m[0].length;
+    let depth = 1, i = startIdx;
+    while (i < clean.length && depth > 0) {
+      if (clean[i] === '{') depth++;
+      else if (clean[i] === '}') depth--;
+      i++;
+    }
+    const body = clean.slice(startIdx, i - 1);
+    const props = parseClassBody(body);
+    if (props.length > 0 || name !== 'ModelObject') {
+      classes[name] = { name, parent, props, file: filePath };
+    }
+  }
+
+  return { classes, enums };
+}
+
+function parseClassBody(body) {
+  const props = [];
+  const ctorRe = /constructor\s*\([^)]*\)\s*\{/g;
+  let cleaned = body;
+  let m;
+  while ((m = ctorRe.exec(cleaned)) !== null) {
+    const start = m.index;
+    let depth = 1, i = start + m[0].length;
+    while (i < cleaned.length && depth > 0) {
+      if (cleaned[i] === '{') depth++;
+      else if (cleaned[i] === '}') depth--;
+      i++;
+    }
+    cleaned = cleaned.slice(0, start) + cleaned.slice(i);
+    ctorRe.lastIndex = start;
+  }
+
+  const propRe = /^\s*(readonly\s+)?(\w+)\s*:\s*([^=;\n]+?)\s*(?:=\s*([^;\n]+?))?\s*;/gm;
+  while ((m = propRe.exec(cleaned)) !== null) {
+    const readonly = !!m[1];
+    const name = m[2];
+    if (['constructor', 'super', 'return', 'this', 'static'].includes(name)) continue;
+    let typeStr = m[3].trim().replace(/\s+/g, ' ');
+    const defaultVal = m[4] ? m[4].trim() : undefined;
+    const nullable = typeStr.includes('| null') || typeStr.includes('null |');
+    const cleanType = typeStr.replace(/\s*\|\s*null/g, '').replace(/null\s*\|\s*/g, '').trim();
+    props.push({ name, type: cleanType, nullable, readonly, default: defaultVal });
+  }
+
+  return props;
+}
+
+function resolveCollectionType(typeStr) {
+  let m = typeStr.match(/ModelCollection<([^>]+)>/);
+  if (m) return m[1].replace(/\s*\|\s*null/g, '').trim();
+  m = typeStr.match(/ModelDictionary<([^>]+)>/);
+  if (m) {
+    const parts = m[1].split(',');
+    return parts[parts.length - 1].replace(/\s*\|\s*null/g, '').trim();
+  }
+  m = typeStr.match(/Array<([^>]+)>/);
+  if (m) return m[1].trim();
+  return null;
+}
+
+function isCollectionType(t) {
+  return /ModelCollection</.test(t) || /Array</.test(t) || t.endsWith('[]');
+}
+
+function isDictType(t) {
+  return /ModelDictionary</.test(t) || /Map</.test(t);
+}
+
+// ────────────────────────────────────────────────────────────
+// Cache helpers (localStorage)
+// Cache key: "om_cache_v1_<omSha>_<dsfSha>"
+// Each entry: { omSha, dsfSha, dsfRef, model, descriptions, dsfLabel }
+// We evict all entries that don't match the current key on write,
+// keeping localStorage from growing unboundedly.
+// ────────────────────────────────────────────────────────────
+const CACHE_VERSION = 'om_v2';
+
+function cacheKey(omSha, dsfSha) {
+  return `${CACHE_VERSION}_${omSha}_${dsfSha || 'none'}`;
+}
+
+function cacheSave(omSha, dsfSha, dsfRef, modelData, descsData, dsfLabel) {
+  // Evict all old entries for this cache version
+  const prefix = CACHE_VERSION + '_';
+  const toRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(prefix)) toRemove.push(k);
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+
+  const key = cacheKey(omSha, dsfSha);
+  try {
+    localStorage.setItem(key, JSON.stringify({ omSha, dsfSha, dsfRef, model: modelData, descriptions: descsData, dsfLabel }));
+    console.log('[cache] saved', key);
+  } catch (e) {
+    // localStorage quota exceeded — not fatal
+    console.warn('[cache] save failed (quota?):', e.message);
+  }
+}
+
+function cacheLoad(omSha, dsfSha) {
+  const key = cacheKey(omSha, dsfSha);
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function getCommitSha(repo, ref) {
+  const data = await fetchJSON(`https://api.github.com/repos/${repo}/commits/${encodeURIComponent(ref)}?per_page=1`);
+  return data.sha;
+}
+
+// ────────────────────────────────────────────────────────────
+// Load & parse
+// ────────────────────────────────────────────────────────────
+async function loadModel(ref) {
+  model = { classes: {}, enums: {} };
+  descriptions = {};
+  lastDetailType = null;
+  lastDetailKey = null;
+  navStack = [];
+
+  // ── Resolve SHAs for cache key ──
+  loading(true, 'Checking for updates…');
+  let omSha = null, dsfRef = null, dsfSha = null;
+  try {
+    omSha = await getCommitSha(OM_REPO, ref);
+  } catch (e) {
+    console.warn('[cache] could not resolve OM SHA:', e.message);
+  }
+
+  setDSFIndicator('none', 'DSF descriptions: searching…');
+  try {
+    dsfRef = await findDSFRef(ref);
+    if (dsfRef) dsfSha = await getCommitSha(DSF_REPO, dsfRef);
+  } catch (e) {
+    console.warn('[cache] could not resolve DSF SHA:', e.message);
+  }
+
+  // ── Try cache hit ──
+  if (omSha) {
+    const cached = cacheLoad(omSha, dsfSha);
+    if (cached) {
+      loading(true, 'Loading from cache…');
+      await tick();
+      model = cached.model;
+      descriptions = cached.descriptions || {};
+      // Re-wire parentRef (not serialisable as circular, rebuild it)
+      for (const cls of Object.values(model.classes)) {
+        if (cls.parent && cls.parent !== 'ModelObject' && model.classes[cls.parent])
+          cls.parentRef = model.classes[cls.parent];
+      }
+      if (cached.dsfLabel) setDSFIndicator('ok', cached.dsfLabel);
+      else setDSFIndicator('none', 'DSF descriptions: no matching branch');
+      loading(false);
+      console.log('[cache] hit — skipped network fetch');
+      return;
+    }
+  }
+
+  // ── Cache miss: fetch and parse everything ──
+
+  // ── Load TypeScript ObjectModel ──
+  loading(true, 'Fetching OM file list...');
+  const omFiles = await fetchOMSourceFiles(ref);
+  const total = omFiles.length;
+  let done = 0;
+
+  const omResults = [];
+  for (let i = 0; i < omFiles.length; i += 10) {
+    loading(true, `Fetching OM source... (${done}/${total})`);
+    const batch = omFiles.slice(i, i + 10);
+    const texts = await Promise.all(
+      batch.map(f => fetchText(`${OM_RAW}/${encodeURIComponent(ref)}/${f}`).then(t => ({ path: f, text: t })))
+    );
+    omResults.push(...texts);
+    done += batch.length;
+  }
+
+  loading(true, 'Parsing TypeScript...');
+  await tick();
+  for (const { path, text } of omResults) {
+    try {
+      const parsed = parseOMFile(text, path);
+      Object.assign(model.classes, parsed.classes);
+      Object.assign(model.enums, parsed.enums);
+    } catch (e) { console.warn('OM parse error:', path, e); }
+  }
+
+  for (const cls of Object.values(model.classes)) {
+    if (cls.parent && cls.parent !== 'ModelObject' && model.classes[cls.parent])
+      cls.parentRef = model.classes[cls.parent];
+  }
+
+  // ── Load DSF descriptions ──
+  let dsfLabel = null;
+  if (dsfRef) {
+    try {
+      loading(true, `Loading DSF descriptions (${dsfRef})...`);
+      await tick();
+      const dsfFiles = await fetchDSFSourceFiles(dsfRef);
+      const dsfTotal = dsfFiles.length;
+      let dsfDone = 0;
+      const dsfResults = [];
+
+      for (let i = 0; i < dsfFiles.length; i += 10) {
+        loading(true, `Fetching DSF source... (${dsfDone}/${dsfTotal})`);
+        const batch = dsfFiles.slice(i, i + 10);
+        const texts = await Promise.all(
+          batch.map(f => fetchText(`${DSF_RAW}/${encodeURIComponent(dsfRef)}/${f}`).then(t => ({ path: f, text: t })))
+        );
+        dsfResults.push(...texts);
+        dsfDone += batch.length;
+      }
+
+      loading(true, 'Parsing DSF descriptions...');
+      await tick();
+      for (const { path, text } of dsfResults) {
+        try {
+          mergeDSFDocs(descriptions, parseDSFFile(text));
+        } catch (e) { console.warn('DSF parse error:', path, e); }
+      }
+
+      const descCount = Object.keys(descriptions).length;
+      dsfLabel = `DSF descriptions: ${dsfRef} (${descCount} types)`;
+      setDSFIndicator('ok', dsfLabel);
+    } catch (e) {
+      console.warn('DSF load failed:', e);
+      setDSFIndicator('error', 'DSF descriptions: failed');
+    }
+  } else {
+    setDSFIndicator('none', 'DSF descriptions: no matching branch');
+  }
+
+  // ── Save to cache (strip parentRef to avoid circular JSON) ──
+  if (omSha) {
+    const modelForCache = {
+      classes: Object.fromEntries(Object.entries(model.classes).map(([k, v]) => {
+        const { parentRef, ...rest } = v;
+        return [k, rest];
+      })),
+      enums: model.enums
+    };
+    cacheSave(omSha, dsfSha, dsfRef, modelForCache, descriptions, dsfLabel);
+  }
+
+  loading(false);
+}
+
+function setDSFIndicator(state, label) {
+  const dot = document.getElementById('dsf-dot');
+  dot.className = state;
+  document.getElementById('dsf-label').textContent = label;
+}
+
+function tick() {
+  return new Promise(r => setTimeout(r, 10));
+}
+
+// ────────────────────────────────────────────────────────────
+// Tree
+// ────────────────────────────────────────────────────────────
+function buildTree() {
+  const root = model.classes['ObjectModel'];
+  if (!root) {
+    document.getElementById('treeScroll').innerHTML =
+      '<div class="placeholder">Could not find ObjectModel class.<br>This branch may not be supported.</div>';
+    return;
+  }
+
+  const scroll = document.getElementById('treeScroll');
+  scroll.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  const rootNode = buildClassNode(root, 0, 'objectModel');
+  frag.appendChild(rootNode);
+  scroll.appendChild(frag);
+
+  // Auto-expand the root node so the top-level properties are visible
+  const rootToggle = rootNode.querySelector('.tree-toggle');
+  const rootChildren = rootNode.querySelector('.tree-children');
+  if (rootToggle && rootChildren) {
+    rootChildren.classList.remove('collapsed');
+    rootToggle.textContent = '▼';
+    rootChildren.dataset.populated = '1';
+    populateClassChildren(root, 0, rootChildren);
+  }
+
+  // Restore the detail panel if something was previously selected
+  if (lastDetailKey) {
+    const detail = document.getElementById('detailPanel');
+    if (lastDetailType === 'class' && model.classes[lastDetailKey]) {
+      detail.innerHTML = renderClassDetail(model.classes[lastDetailKey]);
+      wireDetailLinks(detail);
+    } else if (lastDetailType === 'enum' && model.enums[lastDetailKey]) {
+      detail.innerHTML = renderEnumDetail(model.enums[lastDetailKey]);
+    }
+    // Auto-expand the tree to the selected item
+    if (lastDetailType === 'class') navigateTreeToClass(lastDetailKey);
+  }
+
+  updateControls(true);
+  status(
+    `Loaded: ${Object.keys(model.classes).length} classes, ${Object.keys(model.enums).length} enums`,
+    `(${Object.keys(model.classes).length + Object.keys(model.enums).length} items)`
+  );
+}
+
+function makeTreeRow(depth, toggleText, name, badge, badgeClass, desc) {
+  const row = document.createElement('div');
+  row.className = 'tree-row';
+
+  const indent = document.createElement('span');
+  indent.className = 'tree-indent';
+  indent.style.width = (depth * 16) + 'px';
+
+  const toggle = document.createElement('span');
+  toggle.className = 'tree-toggle';
+  toggle.textContent = toggleText || '';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'tree-name';
+  nameSpan.textContent = name;
+
+  row.appendChild(indent);
+  row.appendChild(toggle);
+  row.appendChild(nameSpan);
+
+  if (badge) {
+    const b = document.createElement('span');
+    b.className = 'tree-badge ' + (badgeClass || 'badge-class');
+    b.textContent = badge;
+    row.appendChild(b);
+  }
+
+  if (desc) {
+    const tip = document.createElement('div');
+    tip.className = 'tree-desc-tooltip';
+    tip.textContent = desc;
+    row.appendChild(tip);
+  }
+
+  return { row, toggle };
+}
+
+function buildClassNode(cls, depth, propName) {
+  const node = document.createElement('div');
+  node.className = 'tree-node';
+  node.dataset.type = 'class';
+  node.dataset.name = cls.name;
+
+  const clsDesc = getClassDesc(cls.name);
+  const { row, toggle } = makeTreeRow(
+    depth, '▶', propName || cls.name,
+    cls.name !== propName ? cls.name : 'class', 'badge-class',
+    clsDesc?.summary || null
+  );
+  node.appendChild(row);
+
+  const children = document.createElement('div');
+  children.className = 'tree-children collapsed';
+  node.appendChild(children);
+
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    const collapsed = children.classList.toggle('collapsed');
+    toggle.textContent = collapsed ? '▶' : '▼';
+    if (!collapsed && !children.dataset.populated) {
+      children.dataset.populated = '1';
+      populateClassChildren(cls, depth, children);
+    }
+  });
+  row.addEventListener('click', () => selectNode(row, 'class', cls.name));
+  return node;
+}
+
+function populateClassChildren(cls, depth, container) {
+  for (const prop of cls.props || []) {
+    const typeStr = prop.type;
+    const innerType = resolveCollectionType(typeStr);
+    const isCollection = isCollectionType(typeStr);
+    const isDict = isDictType(typeStr);
+    const childClass = model.classes[innerType] || model.classes[typeStr.replace(/\s*\|\s*null/g, '')] || null;
+    const childEnum = model.enums[typeStr.replace(/\s*\|\s*null/g, '')] || null;
+    const propDesc = getPropDesc(cls.name, prop.name);
+
+    if (childClass) {
+      const node = document.createElement('div');
+      node.className = 'tree-node';
+      node.dataset.type = 'class';
+      node.dataset.name = childClass.name;
+
+      const badgeText = isCollection ? childClass.name + '[]' : isDict ? childClass.name + '{}' : childClass.name;
+      const badgeCls = isCollection ? 'badge-collection' : isDict ? 'badge-dict' : 'badge-class';
+      const childClsDesc = getClassDesc(childClass.name);
+      const tipText = propDesc?.summary || childClsDesc?.summary || null;
+
+      const { row, toggle } = makeTreeRow(depth + 1, '▶', prop.name, badgeText, badgeCls, tipText);
+      node.appendChild(row);
+
+      const subChildren = document.createElement('div');
+      subChildren.className = 'tree-children collapsed';
+      node.appendChild(subChildren);
+
+      toggle.addEventListener('click', e => {
+        e.stopPropagation();
+        const collapsed = subChildren.classList.toggle('collapsed');
+        toggle.textContent = collapsed ? '▶' : '▼';
+        if (!collapsed && !subChildren.dataset.populated) {
+          subChildren.dataset.populated = '1';
+          populateClassChildren(childClass, depth + 1, subChildren);
+        }
+      });
+      row.addEventListener('click', () => selectNode(row, 'class', childClass.name));
+      container.appendChild(node);
+
+    } else if (childEnum) {
+      // Enum property — leaf row, clicking opens the parent class detail
+      const node = document.createElement('div');
+      node.className = 'tree-node';
+      const row = document.createElement('div');
+      row.className = 'tree-row';
+
+      const indent = document.createElement('span');
+      indent.className = 'tree-indent';
+      indent.style.width = ((depth + 1) * 16) + 'px';
+      const spacer = document.createElement('span');
+      spacer.className = 'tree-toggle';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tree-name';
+      nameSpan.textContent = prop.name;
+
+      const typeDim = document.createElement('span');
+      typeDim.className = 'dim';
+      typeDim.textContent = childEnum.name;
+
+      row.appendChild(indent);
+      row.appendChild(spacer);
+      row.appendChild(nameSpan);
+      row.appendChild(typeDim);
+
+      if (propDesc?.summary) {
+        const tip = document.createElement('div');
+        tip.className = 'tree-desc-tooltip';
+        tip.textContent = propDesc.summary;
+        row.appendChild(tip);
+      }
+
+      node.appendChild(row);
+      row.addEventListener('click', () => selectNode(row, 'prop', cls.name + '.' + prop.name));
+      container.appendChild(node);
+
+    } else {
+      // Leaf property
+      const node = document.createElement('div');
+      node.className = 'tree-node';
+      const row = document.createElement('div');
+      row.className = 'tree-row';
+
+      const indent = document.createElement('span');
+      indent.className = 'tree-indent';
+      indent.style.width = ((depth + 1) * 16) + 'px';
+      const spacer = document.createElement('span');
+      spacer.className = 'tree-toggle';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tree-name';
+      nameSpan.textContent = prop.name;
+
+      const typeDim = document.createElement('span');
+      typeDim.className = 'dim';
+      typeDim.textContent = shortType(prop.type);
+
+      row.appendChild(indent);
+      row.appendChild(spacer);
+      row.appendChild(nameSpan);
+      row.appendChild(typeDim);
+
+      if (propDesc?.summary) {
+        const tip = document.createElement('div');
+        tip.className = 'tree-desc-tooltip';
+        tip.textContent = propDesc.summary;
+        row.appendChild(tip);
+      }
+
+      node.appendChild(row);
+      row.addEventListener('click', () => selectNode(row, 'prop', cls.name + '.' + prop.name));
+      container.appendChild(node);
+    }
+  }
+
+  if (container.children.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:4px 8px;font-size:12px;color:var(--text-dim)';
+    empty.textContent = '(no properties)';
+    container.appendChild(empty);
+  }
+}
+
+
+// ────────────────────────────────────────────────────────────
+// Selection / detail panel
+// ────────────────────────────────────────────────────────────
+// Push a history entry and render the detail panel.
+// stack = navStack state at the moment of this navigation.
+function pushDetailState(type, key, stack) {
+  history.pushState({ type, key, stack }, '');
+  restoreDetailState({ type, key, stack });
+}
+
+// Restore the detail panel (and navStack) from a history state object,
+// without pushing another history entry.
+function restoreDetailState(state) {
+  navStack = state.stack || [];
+  lastDetailType = state.type;
+  lastDetailKey = state.key;
+  detailOpenPaths.clear();
+  const detail = document.getElementById('detailPanel');
+  if (state.type === 'class' && model.classes[state.key]) {
+    detail.innerHTML = renderClassDetail(model.classes[state.key]);
+    navigateTreeToClass(state.key);
+  } else if (state.type === 'enum' && model.enums[state.key]) {
+    detail.innerHTML = renderEnumDetail(model.enums[state.key]);
+  }
+  wireDetailLinks(detail);
+}
+
+// Browser back/forward
+window.addEventListener('popstate', e => {
+  if (!e.state || !model.classes['ObjectModel']) return;
+  restoreDetailState(e.state);
+});
+
+function selectNode(rowEl, type, key) {
+  if (selectedNode) selectedNode.classList.remove('selected');
+  rowEl.classList.add('selected');
+  selectedNode = rowEl;
+
+  let resolvedType = type, resolvedKey = key;
+  if (type === 'prop') {
+    resolvedType = 'class';
+    resolvedKey = key.split('.')[0];
+  }
+  if (resolvedType === 'class' && !model.classes[resolvedKey]) return;
+  if (resolvedType === 'enum' && !model.enums[resolvedKey]) return;
+
+  // Tree selections start a fresh history entry with empty stack
+  pushDetailState(resolvedType, resolvedKey, []);
+}
+
+// Navigate the detail panel to a new class/enum, pushing current view onto breadcrumb stack.
+function navigateDetail(targetType, targetKey) {
+  const newStack = lastDetailKey ? [...navStack, { type: lastDetailType, key: lastDetailKey }] : [...navStack];
+  pushDetailState(targetType, targetKey, newStack);
+}
+
+// Navigate back to a specific point in the breadcrumb stack (idx = stack index to jump to).
+function navigateBreadcrumb(idx) {
+  const entry = navStack[idx];
+  if (!entry) return;
+  pushDetailState(entry.type, entry.key, navStack.slice(0, idx));
+}
+
+// Build a map: className -> Set of all transitive subclass names
+function buildSubclassMap() {
+  const direct = {}; // className -> Set of direct subclasses
+  for (const cls of Object.values(model.classes)) {
+    if (cls.parent) {
+      if (!direct[cls.parent]) direct[cls.parent] = new Set();
+      direct[cls.parent].add(cls.name);
+    }
+  }
+  // Transitively expand
+  const map = {};
+  function getAll(name) {
+    if (map[name]) return map[name];
+    map[name] = new Set();
+    for (const child of direct[name] || []) {
+      map[name].add(child);
+      for (const grand of getAll(child)) map[name].add(grand);
+    }
+    return map[name];
+  }
+  for (const name of Object.keys(direct)) getAll(name);
+  return map;
+}
+
+// Navigate the tree DOM to the given class, expanding nodes along the way.
+// Uses findPaths to determine the path, then walks the DOM level by level.
+function navigateTreeToClass(targetClassName) {
+  if (!model.classes[targetClassName]) return;
+
+  // If this is ObjectModel itself, just highlight the root row
+  if (targetClassName === 'ObjectModel') {
+    const rootRow = document.querySelector('#treeScroll .tree-row');
+    if (rootRow) {
+      if (selectedNode) selectedNode.classList.remove('selected');
+      rootRow.classList.add('selected');
+      selectedNode = rootRow;
+      rootRow.scrollIntoView({ block: 'nearest' });
+    }
+    return;
+  }
+
+  // Get the path from findPaths — use the shortest one
+  const paths = findPaths(targetClassName);
+  if (!paths.length) return;
+  const shortestPath = paths.reduce((a, b) => a.split('.').length <= b.split('.').length ? a : b);
+
+  // Parse path into segments, stripping [] and {} suffixes
+  // e.g. "sensors.filamentMonitors[]" → ["sensors", "filamentMonitors"]
+  const segments = shortestPath.split('.').map(s => s.replace(/[\[\]{}]+$/, ''));
+
+  // Walk the tree DOM: start at the root node's children container
+  const scroll = document.getElementById('treeScroll');
+  const rootNode = scroll.querySelector('.tree-node');
+  if (!rootNode) return;
+
+  // Ensure root children are expanded and populated (already done in buildTree, but just in case)
+  const rootChildren = rootNode.querySelector('.tree-children');
+  const rootToggle = rootNode.querySelector('.tree-toggle');
+  if (!rootChildren) return;
+  if (rootChildren.classList.contains('collapsed')) {
+    rootChildren.classList.remove('collapsed');
+    if (rootToggle) rootToggle.textContent = '▼';
+    if (!rootChildren.dataset.populated) {
+      rootChildren.dataset.populated = '1';
+      const rootCls = model.classes['ObjectModel'];
+      if (rootCls) populateClassChildren(rootCls, 0, rootChildren);
+    }
+  }
+
+  // Walk through segments, expanding the matching child node at each level
+  let currentContainer = rootChildren;
+  let currentDepth = 0;
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const isLast = i === segments.length - 1;
+
+    // Find the child node whose row label matches this segment
+    const childNodes = currentContainer.querySelectorAll(':scope > .tree-node');
+    let found = null;
+    for (const node of childNodes) {
+      const nameSpan = node.querySelector('.tree-name');
+      if (nameSpan && nameSpan.textContent === seg) {
+        found = node;
+        break;
+      }
+    }
+    if (!found) break;
+
+    const row = found.querySelector(':scope > .tree-row');
+    const childContainer = found.querySelector(':scope > .tree-children');
+    const toggle = row?.querySelector('.tree-toggle');
+
+    if (isLast) {
+      // Highlight this row as selected
+      if (row) {
+        if (selectedNode) selectedNode.classList.remove('selected');
+        row.classList.add('selected');
+        selectedNode = row;
+        row.scrollIntoView({ block: 'nearest' });
+      }
+    } else {
+      // Expand this node and populate its children if needed
+      if (childContainer) {
+        if (childContainer.classList.contains('collapsed')) {
+          childContainer.classList.remove('collapsed');
+          if (toggle) toggle.textContent = '▼';
+        }
+        if (!childContainer.dataset.populated) {
+          childContainer.dataset.populated = '1';
+          const nodeCls = model.classes[found.dataset.name];
+          if (nodeCls) populateClassChildren(nodeCls, currentDepth + 1, childContainer);
+        }
+      }
+      currentContainer = childContainer || currentContainer;
+      currentDepth++;
+    }
+  }
+}
+
+// Walk the ObjectModel tree to find all dotted paths that lead to targetClass.
+// At every object/collection property, walks the declared type AND all its
+// transitive subclasses — this handles polymorphic collections like
+// sensors.filamentMonitors[] (declared as FilamentMonitor, but at runtime
+// can be LaserFilamentMonitor, PulsedFilamentMonitor, etc.).
+function findPaths(targetClassName) {
+  const root = model.classes['ObjectModel'];
+  if (!root) return [];
+  if (!model.classes[targetClassName]) return [];
+
+  const subclassMap = buildSubclassMap();
+  const results = new Set();
+  // visited: cls.name + path, to avoid infinite loops on shared/recursive types
+  const visited = new Set();
+
+  function walk(cls, pathSoFar) {
+    const key = cls.name + '|' + pathSoFar;
+    if (visited.has(key)) return;
+    visited.add(key);
+
+    // If we've arrived at the target, record the path
+    if (cls.name === targetClassName && pathSoFar) {
+      results.add(pathSoFar);
+      return; // no need to recurse into target's own props
+    }
+
+    for (const prop of cls.props || []) {
+      const inner = resolveCollectionType(prop.type);
+      const isCol = isCollectionType(prop.type);
+      const isDct = isDictType(prop.type);
+      const resolvedType = (inner || prop.type).replace(/\s*\|\s*null/g, '').trim();
+
+      if (!model.classes[resolvedType]) continue;
+
+      const suffix = isCol ? '[]' : isDct ? '{}' : '';
+      const segment = pathSoFar ? pathSoFar + '.' + prop.name + suffix : prop.name + suffix;
+
+      // Collect all classes reachable from this type:
+      // the type itself + all subclasses of the type + all subclasses of
+      // every ancestor of the type (handles sibling polymorphism, e.g.
+      // FilamentMonitor and LaserFilamentMonitor both extend FilamentMonitorBase)
+      const toWalk = new Set([resolvedType]);
+      for (const sub of subclassMap[resolvedType] || []) toWalk.add(sub);
+      // Walk ancestor chain and add their subclasses
+      let ancestor = model.classes[resolvedType];
+      while (ancestor) {
+        for (const sub of subclassMap[ancestor.name] || []) toWalk.add(sub);
+        ancestor = ancestor.parent ? model.classes[ancestor.parent] : null;
+      }
+
+      for (const name of toWalk) {
+        const c = model.classes[name];
+        if (c) walk(c, segment);
+      }
+    }
+  }
+
+  walk(root, '');
+  return [...results].sort();
+}
+
+function wireDetailLinks(detail) {
+  // Type links navigate away — but skip <tr> drilldown rows (those expand inline instead)
+  detail.querySelectorAll('[data-goto]').forEach(el => {
+    if (el.tagName === 'TR') return;
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const target = el.dataset.goto;
+      if (model.classes[target]) navigateDetail('class', target);
+      else if (model.enums[target]) navigateDetail('enum', target);
+    });
+  });
+  detail.querySelectorAll('[data-bc]').forEach(el => {
+    el.addEventListener('click', () => navigateBreadcrumb(parseInt(el.dataset.bc)));
+  });
+  // Drilldown rows now toggle inline expansion instead of navigating away
+  detail.querySelectorAll('tr.prop-row-drilldown').forEach(row => {
+    row.addEventListener('click', () => toggleInlineExpand(row, detail));
+  });
+  detail.querySelectorAll('[data-copy-path]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      copyPathToClipboard(btn.dataset.copyPath, btn);
+    });
+  });
+}
+
+// Track which paths are currently expanded in the detail panel
+const detailOpenPaths = new Set();
+
+function toggleInlineExpand(row, detail) {
+  const targetClass = row.dataset.goto;
+  const path = row.dataset.path;
+  const key = path + '::' + targetClass;
+
+  if (detailOpenPaths.has(key)) {
+    // Collapse: remove all rows with data-expand-key starting with this key
+    for (const k of [...detailOpenPaths]) {
+      if (k === key || k.startsWith(key + '::')) detailOpenPaths.delete(k);
+    }
+    detail.querySelectorAll(`tr[data-expand-key^="${CSS.escape(key)}"]`).forEach(r => r.remove());
+    const chevron = row.querySelector('.prop-drilldown-chevron');
+    if (chevron) chevron.textContent = '▶';
+    // Sync tree back to the class currently shown in the detail panel
+    navigateTreeToClass(lastDetailKey);
+  } else {
+    // Expand: insert child rows after this row
+    detailOpenPaths.add(key);
+    const chevron = row.querySelector('.prop-drilldown-chevron');
+    if (chevron) chevron.textContent = '▼';
+    insertExpandedRows(row, targetClass, path, key, 1, detail);
+    // Sync tree to the expanded class
+    navigateTreeToClass(targetClass);
+  }
+}
+
+function insertExpandedRows(afterRow, className, basePath, expandKey, indent, detail) {
+  const cls = model.classes[className];
+  if (!cls) return;
+  const hasAnyDesc = (cls.props || []).some(p => getPropDesc(cls.name, p.name));
+  // Count columns in table to set colspan correctly
+  const headerRow = detail.querySelector('.prop-table thead tr');
+  const colCount = headerRow ? headerRow.cells.length : 4;
+
+  let insertAfter = afterRow;
+
+  for (const p of cls.props || []) {
+    const desc = getPropDesc(cls.name, p.name);
+    const inner = resolveCollectionType(p.type);
+    const isCol = isCollectionType(p.type);
+    const isDct = isDictType(p.type);
+    const isEnum = !!model.enums[p.type];
+    const isCls = !!model.classes[p.type];
+
+    const drillTarget = (isCol && inner && model.classes[inner]) ? inner
+      : (isDct && inner && model.classes[inner]) ? inner
+      : (isCls) ? p.type
+      : null;
+
+    // Type display
+    let typeHtml;
+    if (isCol && inner && (model.classes[inner] || model.enums[inner])) {
+      typeHtml = `<span class="prop-type prop-link" data-goto="${escHtml(inner)}">${escHtml(inner)}[]</span>`;
+    } else if (isDct && inner && model.classes[inner]) {
+      typeHtml = `<span class="prop-type prop-link" data-goto="${escHtml(inner)}">${escHtml(inner)}{}</span>`;
+    } else if (isCls || isEnum) {
+      typeHtml = `<span class="prop-type${(isCls || isEnum) ? ' prop-link' : ''}" ${(isCls||isEnum) ? `data-goto="${escHtml(p.type)}"` : ''}>${escHtml(p.type)}</span>`;
+    } else {
+      typeHtml = `<span class="prop-type">${escHtml(shortType(p.type))}</span>`;
+    }
+    if (p.nullable) typeHtml += ` <span style="color:var(--text-dim);font-size:11px">or null</span>`;
+
+    let enumInline = '';
+    if (isEnum) {
+      const en = model.enums[p.type];
+      enumInline = `<div class="enum-inline">` +
+        en.members.map(m => `<span class="enum-pip">${escHtml(m.key)}</span>`).join('') + `</div>`;
+    }
+
+    let sbcBadge = '';
+    if (desc?.sbcProperty === false) sbcBadge = ` <span class="tag tag-sbc-only">SBC only</span>`;
+    else if (desc?.sbcProperty === true) sbcBadge = ` <span class="tag tag-sbc-also">SBC</span>`;
+
+    const childPath = basePath + '.' + p.name;
+    const propCopyPath = childPath;
+    const paddingLeft = 10 + indent * 20;
+    const childKey = expandKey + '::' + p.name;
+
+    const tr = document.createElement('tr');
+    tr.dataset.expandKey = expandKey;
+    tr.dataset.path = childPath;
+    tr.classList.add('expanded-child');
+    if (drillTarget) {
+      tr.classList.add('prop-row-drilldown');
+      tr.dataset.goto = drillTarget;
+      tr.addEventListener('click', () => toggleInlineExpand(tr, detail));
+    }
+
+    const toggle = drillTarget ? `<span class="prop-drilldown-chevron">▶</span>` : `<span class="dtoggle"></span>`;
+    const descHtml = desc?.summary
+      ? escHtml(desc.summary) + (desc.remarks ? `<div class="remarks">${escHtml(desc.remarks)}</div>` : '')
+      : `<span style="color:var(--text-dim)">—</span>`;
+
+    tr.innerHTML = `
+      <td style="padding-left:${paddingLeft}px"><div class="prop-name-cell">${toggle}<span class="prop-name${p.readonly ? ' is-readonly' : ''}">${escHtml(p.name)}</span>${sbcBadge}</div></td>
+      <td>${typeHtml}${enumInline}</td>
+      <td><span class="prop-default">${escHtml(p.default || '')}</span></td>
+      ${colCount >= 4 ? `<td class="prop-desc-cell">${descHtml}</td>` : ''}
+      <td style="text-align:center"><button class="copy-path-btn" data-copy-path="${escHtml(propCopyPath)}" title="Copy path">⎘</button></td>
+    `;
+
+    // Wire type links (spans) but not the tr itself — it expands inline
+    tr.querySelectorAll('[data-goto]').forEach(el => {
+      if (el.tagName === 'TR') return;
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const t = el.dataset.goto;
+        if (model.classes[t]) navigateDetail('class', t);
+        else if (model.enums[t]) navigateDetail('enum', t);
+      });
+    });
+    tr.querySelectorAll('[data-copy-path]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        copyPathToClipboard(btn.dataset.copyPath, btn);
+      });
+    });
+
+    insertAfter.insertAdjacentElement('afterend', tr);
+    insertAfter = tr;
+  }
+}
+
+function renderBreadcrumb() {
+  if (!navStack.length) return '';
+  const parts = navStack.map((entry, i) =>
+    `<span class="bc-item" data-bc="${i}">${escHtml(entry.key)}</span>`
+  );
+  return `<div class="detail-breadcrumb">${parts.join('<span class="bc-sep">›</span>')}` +
+    `<span class="bc-sep">›</span><span class="bc-current">${escHtml(lastDetailKey || '')}</span></div>`;
+}
+
+function renderClassDetail(cls) {
+  const allProps = cls.props || [];
+  const clsDesc = getClassDesc(cls.name);
+  const hasAnyDesc = allProps.some(p => getPropDesc(cls.name, p.name));
+
+  let html = renderBreadcrumb();
+  html += `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">`;
+  html += `<h2>${escHtml(cls.name)}</h2>`;
+  html += `</div>`;
+
+  // Object model path breadcrumb
+  const paths = findPaths(cls.name);
+  if (paths.length > 0) {
+    html += `<div class="om-path">`;
+    html += paths.map(p => `<code class="om-path-code">${escHtml(p)}</code><button class="copy-path-btn" data-copy-path="${escHtml(p)}" title="Copy path">⎘</button>`).join('');
+    html += `</div>`;
+  }
+
+  if (clsDesc?.summary) {
+    html += `<div class="class-description">${escHtml(clsDesc.summary)}`;
+    if (clsDesc.remarks) html += `<div class="remarks">${escHtml(clsDesc.remarks)}</div>`;
+    html += `</div>`;
+  }
+
+  if (allProps.length === 0) {
+    html += `<div style="color:var(--text-dim);font-size:13px;margin-top:16px">No properties found.</div>`;
+    return html;
+  }
+
+  html += `<table class="prop-table"><thead><tr>
+    <th>Property</th>
+    <th>Type</th>
+    <th>Default</th>
+    ${hasAnyDesc ? '<th>Description</th>' : ''}
+    <th style="width:32px"></th>
+  </tr></thead><tbody>`;
+
+  // Compute the base OM path for copy-path (use first path if any, else camelCase class name)
+  const basePath = paths.length > 0 ? paths[0] : (cls.name.charAt(0).toLowerCase() + cls.name.slice(1));
+
+  for (const p of allProps) {
+    const desc = getPropDesc(cls.name, p.name);
+    const inner = resolveCollectionType(p.type);
+    const isCol = isCollectionType(p.type);
+    const isDct = isDictType(p.type);
+    const isEnum = !!model.enums[p.type];
+    const isCls = !!model.classes[p.type];
+
+    // Type cell: clickable link for object/enum types, plain text for primitives
+    let typeHtml;
+    if (isCol && inner && (model.classes[inner] || model.enums[inner])) {
+      typeHtml = `<span class="prop-type prop-link" data-goto="${escHtml(inner)}">${escHtml(inner)}[]</span>`;
+    } else if (isDct && inner && model.classes[inner]) {
+      typeHtml = `<span class="prop-type prop-link" data-goto="${escHtml(inner)}">${escHtml(inner)}{}</span>`;
+    } else if (isCol) {
+      typeHtml = `<span class="prop-type">${escHtml(shortType(p.type))}</span>`;
+    } else if (isCls || isEnum) {
+      typeHtml = `<span class="prop-type prop-link" data-goto="${escHtml(p.type)}">${escHtml(p.type)}</span>`;
+    } else {
+      typeHtml = `<span class="prop-type">${escHtml(p.type)}</span>`;
+    }
+
+    // Nullable indicator inline with type
+    if (p.nullable) typeHtml += ` <span style="color:var(--text-dim);font-size:11px">or null</span>`;
+
+    // Description cell
+    let descHtml = '';
+    if (hasAnyDesc) {
+      if (desc?.summary) {
+        descHtml = escHtml(desc.summary);
+        if (desc.remarks) descHtml += `<div class="remarks">${escHtml(desc.remarks)}</div>`;
+      } else {
+        descHtml = `<span style="color:var(--text-dim)">—</span>`;
+      }
+    }
+
+    // Enum: show allowed values inline under the type as small chips
+    let enumInline = '';
+    if (isEnum) {
+      const en = model.enums[p.type];
+      enumInline = `<div class="enum-inline">` +
+        en.members.map(m => {
+          const md = getEnumMemberDesc(en.name, m.key);
+          const tip = md?.summary ? ` title="${escHtml(md.summary)}"` : '';
+          return `<span class="enum-pip"${tip}>${escHtml(m.key)}</span>`;
+        }).join('') +
+        `</div>`;
+    }
+
+    // Build copy path: base path with array suffix for collections, then .propName
+    const isColOrDict = isCol || isDct;
+    const propCopyPath = (basePath ? basePath + (isColOrDict ? '[0].' : '.') : '') + p.name;
+
+    // Determine if this row drills into a class (not just an enum)
+    const drillTarget = (isCol && inner && model.classes[inner]) ? inner
+      : (isDct && inner && model.classes[inner]) ? inner
+      : (isCls) ? p.type
+      : null;
+    const rowClass = drillTarget ? ` class="prop-row-drilldown" data-goto="${escHtml(drillTarget)}" data-path="${escHtml(propCopyPath)}"` : '';
+    const chevron = drillTarget ? `<span class="prop-drilldown-chevron">▶</span>` : '';
+
+    let sbcBadge = '';
+    if (desc?.sbcProperty === false) {
+      sbcBadge = ` <span class="tag tag-sbc-only" title="Only available when used with an SBC running DuetSoftwareFramework">SBC only</span>`;
+    } else if (desc?.sbcProperty === true) {
+      sbcBadge = ` <span class="tag tag-sbc-also" title="Managed by DuetSoftwareFramework but also available in standalone mode">SBC</span>`;
+    }
+
+    html += `<tr${rowClass}>
+      <td><div class="prop-name-cell">${chevron}<span class="prop-name">${escHtml(p.name)}</span>${sbcBadge}</div></td>
+      <td>${typeHtml}${enumInline}</td>
+      <td><span class="prop-default">${escHtml(p.default || '')}</span></td>
+      ${hasAnyDesc ? `<td class="prop-desc-cell">${descHtml}</td>` : ''}
+      <td style="text-align:center;white-space:nowrap"><button class="copy-path-btn" data-copy-path="${escHtml(propCopyPath)}" title="Copy path: ${escHtml(propCopyPath)}">⎘</button></td>
+    </tr>`;
+  }
+
+  return html + '</tbody></table>';
+}
+
+function renderEnumDetail(en) {
+  const enDesc = getClassDesc(en.name);
+  const hasMemberDescs = en.members.some(m => getEnumMemberDesc(en.name, m.key));
+
+  let html = renderBreadcrumb();
+  html += `<h2>${escHtml(en.name)}</h2>`;
+
+  if (enDesc?.summary) {
+    html += `<div class="class-description">${escHtml(enDesc.summary)}</div>`;
+  }
+
+  html += `<table class="prop-table"><thead><tr>
+    <th>Value</th>${hasMemberDescs ? '<th>Description</th>' : ''}
+  </tr></thead><tbody>`;
+
+  for (const m of en.members) {
+    const d = getEnumMemberDesc(en.name, m.key);
+    html += `<tr>
+      <td><span style="font-family:monospace;color:var(--green)">${escHtml(m.key)}</span>
+        ${m.value !== undefined ? `<span class="prop-default" style="margin-left:8px">= ${escHtml(String(m.value))}</span>` : ''}
+      </td>
+      ${hasMemberDescs ? `<td class="prop-desc-cell">${d?.summary ? escHtml(d.summary) : '<span style="color:var(--text-dim)">—</span>'}</td>` : ''}
+    </tr>`;
+  }
+
+  return html + '</tbody></table>';
+}
+
+// ────────────────────────────────────────────────────────────
+// Search
+// ────────────────────────────────────────────────────────────
+function applySearch(term) {
+  searchTerm = term.trim();
+  if (!model.classes['ObjectModel']) return;
+  if (!searchTerm) { buildTree(); return; }
+
+  const lc = searchTerm.toLowerCase();
+  const matches = [];
+
+  for (const cls of Object.values(model.classes)) {
+    for (const prop of cls.props) {
+      const desc = getPropDesc(cls.name, prop.name);
+      if (prop.name.toLowerCase().includes(lc) ||
+          cls.name.toLowerCase().includes(lc) ||
+          prop.type.toLowerCase().includes(lc) ||
+          desc?.summary?.toLowerCase().includes(lc)) {
+        matches.push({ cls, prop });
+      }
+    }
+  }
+  // Also match on enum type name or member names (surfaces via the property that uses them)
+  for (const cls of Object.values(model.classes)) {
+    for (const prop of cls.props) {
+      const en = model.enums[prop.type];
+      if (!en) continue;
+      const alreadyMatched = matches.some(m => m.cls === cls && m.prop === prop);
+      if (alreadyMatched) continue;
+      if (en.name.toLowerCase().includes(lc) ||
+          en.members.some(m => {
+            const md = getEnumMemberDesc(en.name, m.key);
+            return m.key.toLowerCase().includes(lc) || md?.summary?.toLowerCase().includes(lc);
+          })) {
+        matches.push({ cls, prop });
+      }
+    }
+  }
+
+  const scroll = document.getElementById('treeScroll');
+  scroll.innerHTML = '';
+
+  if (!matches.length) {
+    scroll.innerHTML = `<div class="placeholder">No results for "${escHtml(searchTerm)}"</div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  let count = 0;
+
+  const byClass = {};
+  for (const m of matches) {
+    if (m.cls) {
+      if (!byClass[m.cls.name]) byClass[m.cls.name] = { cls: m.cls, props: [] };
+      byClass[m.cls.name].props.push(m.prop);
+    }
+  }
+
+  for (const [clsName, { cls, props }] of Object.entries(byClass)) {
+    const groupEl = document.createElement('div');
+    const clsRow = document.createElement('div');
+    clsRow.className = 'tree-row';
+    clsRow.innerHTML = `<span class="tree-name" style="font-weight:600">${highlightText(clsName, lc)}</span>
+      <span class="tree-badge badge-class">${props.length} match${props.length !== 1 ? 'es' : ''}</span>`;
+    clsRow.addEventListener('click', () => selectNode(clsRow, 'class', clsName));
+    groupEl.appendChild(clsRow);
+
+    for (const prop of props) {
+      const desc = getPropDesc(cls.name, prop.name);
+      const prow = document.createElement('div');
+      prow.className = 'tree-row';
+
+      let descSnippet = '';
+      if (desc?.summary) {
+        descSnippet = `<div style="font-size:11px;color:var(--text-dim);margin-top:1px;padding-left:40px">${highlightText(desc.summary, lc)}</div>`;
+      }
+      prow.innerHTML = `<span class="tree-indent" style="width:24px"></span>
+        <span class="tree-name">${highlightText(prop.name, lc)}</span>
+        <span class="dim">${escHtml(shortType(prop.type))}</span>`;
+      if (desc?.summary && desc.summary.toLowerCase().includes(lc)) {
+        const d = document.createElement('div');
+        d.style.cssText = 'width:100%;font-size:11px;color:var(--text-dim);padding-left:40px;margin-top:1px';
+        d.innerHTML = highlightText(desc.summary, lc);
+        prow.after(d);
+        prow.addEventListener('click', () => selectNode(prow, 'prop', clsName + '.' + prop.name));
+        groupEl.appendChild(prow);
+        groupEl.appendChild(d);
+        count++;
+        continue;
+      }
+      prow.addEventListener('click', () => selectNode(prow, 'prop', clsName + '.' + prop.name));
+      groupEl.appendChild(prow);
+      count++;
+    }
+    frag.appendChild(groupEl);
+  }
+
+  scroll.appendChild(frag);
+  status(`Search: "${searchTerm}"`, `${count} result${count !== 1 ? 's' : ''}`);
+}
+
+// ────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────
+function shortType(t) {
+  return t.replace('ModelCollection', 'Collection').replace('ModelDictionary', 'Dict').replace('ModelSet', 'Set');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightText(text, term) {
+  if (!term) return escHtml(text);
+  const idx = text.toLowerCase().indexOf(term.toLowerCase());
+  if (idx === -1) return escHtml(text);
+  return escHtml(text.slice(0, idx)) +
+    `<span class="hl">${escHtml(text.slice(idx, idx + term.length))}</span>` +
+    escHtml(text.slice(idx + term.length));
+}
+
+function showError(msg) {
+  // Format lines starting with spaces as code blocks
+  const formatted = escHtml(msg).replace(/\n/g, '<br>').replace(/(&nbsp;|  )+(M586[^<]*)/g, '<code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:3px;font-family:monospace">$2</code>');
+  document.getElementById('detailPanel').innerHTML =
+    `<div class="error-box"><strong>Error</strong><br>${formatted}</div>`;
+}
+
+function updateControls(enabled) {
+  document.getElementById('expandAllBtn').disabled = !enabled;
+  document.getElementById('collapseAllBtn').disabled = !enabled;
+  document.getElementById('searchBox').disabled = !enabled;
+  if (!enabled) document.getElementById('searchClear').style.display = 'none';
+}
+
+function copyPathToClipboard(path, triggerEl) {
+  navigator.clipboard.writeText(path).then(() => {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'copy-path-tooltip';
+    tooltip.textContent = 'Copied!';
+    document.body.appendChild(tooltip);
+    const rect = triggerEl.getBoundingClientRect();
+    tooltip.style.left = (rect.left + window.scrollX) + 'px';
+    tooltip.style.top = (rect.top + window.scrollY - 28) + 'px';
+    setTimeout(() => tooltip.remove(), 1200);
+  }).catch(() => {});
+}
+
+// ────────────────────────────────────────────────────────────
+// Expand / Collapse All
+// ────────────────────────────────────────────────────────────
+document.getElementById('expandAllBtn').addEventListener('click', () => {
+  document.querySelectorAll('.tree-children').forEach(el => {
+    el.classList.remove('collapsed');
+    const toggle = el.previousElementSibling?.querySelector('.tree-toggle');
+    if (toggle) toggle.textContent = '▼';
+  });
+});
+
+document.getElementById('collapseAllBtn').addEventListener('click', () => {
+  document.querySelectorAll('.tree-children').forEach(el => {
+    el.classList.add('collapsed');
+    const toggle = el.previousElementSibling?.querySelector('.tree-toggle');
+    if (toggle) toggle.textContent = '▶';
+  });
+});
+
+// ────────────────────────────────────────────────────────────
+// Search
+// ────────────────────────────────────────────────────────────
+let searchTimer;
+const searchBox = document.getElementById('searchBox');
+const searchClear = document.getElementById('searchClear');
+
+searchBox.addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchClear.style.display = e.target.value ? 'block' : 'none';
+  searchTimer = setTimeout(() => applySearch(e.target.value), 250);
+});
+
+searchClear.addEventListener('click', () => {
+  searchBox.value = '';
+  searchClear.style.display = 'none';
+  applySearch('');
+  searchBox.focus();
+});
+
+// ────────────────────────────────────────────────────────────
+// Load button
+// ────────────────────────────────────────────────────────────
+document.getElementById('loadBtn').addEventListener('click', async () => {
+  const ref = document.getElementById('branchSelect').value;
+  if (!ref) return;
+  document.getElementById('loadBtn').disabled = true;
+  document.getElementById('searchBox').value = '';
+  searchTerm = '';
+  try {
+    await loadModel(ref);
+    buildTree();
+  } catch (e) {
+    loading(false);
+    showError('Failed to load model: ' + e.message);
+    status('Error loading');
+  }
+  document.getElementById('loadBtn').disabled = false;
+});
+
+// ────────────────────────────────────────────────────────────
+// Resizer
+// ────────────────────────────────────────────────────────────
+const resizer = document.getElementById('resizer');
+const treePanel = document.getElementById('treePanel');
+let resizing = false, resizeStartX, resizeStartW;
+
+resizer.addEventListener('mousedown', e => {
+  resizing = true; resizeStartX = e.clientX; resizeStartW = treePanel.offsetWidth;
+  resizer.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  treePanel.style.width = Math.max(180, Math.min(700, resizeStartW + e.clientX - resizeStartX)) + 'px';
+});
+document.addEventListener('mouseup', () => {
+  if (!resizing) return;
+  resizing = false; resizer.classList.remove('dragging');
+  document.body.style.cursor = ''; document.body.style.userSelect = '';
+});
+
+// (Live mode removed — see dwc-plugin/ for live value browsing)
+
+// ────────────────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────────────────
+(async () => {
+  document.getElementById('viewerVersion').textContent = 'v' + VIEWER_VERSION;
+  await loadBranches();
+  const sel = document.getElementById('branchSelect');
+  if (sel.value) {
+    try {
+      await loadModel(sel.value);
+      buildTree();
+    } catch (e) {
+      loading(false);
+      showError('Auto-load failed: ' + e.message + '\n\nPlease select a branch and click Load.');
+      status('Auto-load failed');
+      document.getElementById('loadBtn').disabled = false;
+    }
+  }
+})();
+</script>
+</body>
+</html>
