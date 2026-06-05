@@ -107,50 +107,33 @@
             <div v-if="detailClassDesc.remarks" class="text-medium-emphasis mt-1" style="font-size:12px;font-style:italic">{{ detailClassDesc.remarks }}</div>
           </div>
 
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th>{{ $t('plugins.omBrowser.colProperty') }}</th>
-                <th>{{ $t('plugins.omBrowser.colValue') }}</th>
-                <th>{{ $t('plugins.omBrowser.colType') }}</th>
-                <th v-if="detailHasDesc">{{ $t('plugins.omBrowser.colDescription') }}</th>
-                <th style="width:54px" />
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="row in flatDetailRows" :key="row.path">
-                <tr
-                  :class="{ 'row-drilldown': row.drillable }"
-                  @click="row.drillable && togglePath(row.path)"
-                >
-                  <td :style="{ paddingLeft: (4 + row.indent * 20) + 'px' }">
-                    <div class="prop-name-cell">
-                      <span class="dtoggle">{{ row.drillable ? (openNodes[row.path] ? '▼' : '▶') : '' }}</span>
-                      <span class="prop-name">{{ row.key }}</span>
-                      <span v-if="row.desc && row.desc.sbcProperty === false" class="tag tag-sbc-only ml-1">{{ $t('plugins.omBrowser.sbcOnly') }}</span>
-                      <span v-else-if="row.desc && row.desc.sbcProperty === true" class="tag tag-sbc ml-1">{{ $t('plugins.omBrowser.sbc') }}</span>
-                    </div>
-                  </td>
-                  <td><span :class="['live-val', liveValClass(row.value)]">{{ fmtLive(row.value) }}</span></td>
-                  <td>
-                    <span class="prop-type">{{ row.typeName }}</span>
-                    <span v-if="row.nullable" class="text-medium-emphasis" style="font-size:11px"> {{ $t('plugins.omBrowser.orNull') }}</span>
-                    <div v-if="row.enumMembers" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">
-                      <span v-for="m in row.enumMembers" :key="m" class="enum-pip">{{ m }}</span>
-                    </div>
-                  </td>
-                  <td v-if="detailHasDesc" class="desc-cell">
-                    <template v-if="row.desc">{{ row.desc.summary }}</template>
-                    <span v-else class="text-medium-emphasis">—</span>
-                  </td>
-                  <td style="text-align:right;white-space:nowrap;padding:0 2px">
-                    <v-btn icon variant="text" size="x-small" :title="isPinned(row.path) ? $t('plugins.omBrowser.unpin') : $t('plugins.omBrowser.pin')" @click.stop="togglePin(row.path)"><v-icon size="x-small" :color="isPinned(row.path) ? 'primary' : undefined">{{ isPinned(row.path) ? 'mdi-pin' : 'mdi-pin-outline' }}</v-icon></v-btn>
-                    <v-btn icon variant="text" size="x-small" :title="$t('plugins.omBrowser.copyPath')" @click.stop="copyPath(row.path)"><v-icon size="x-small">mdi-content-copy</v-icon></v-btn>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
+          <!-- Each property as a stacked item: name + value on the first line, with its type and
+               description on a sub-line beneath. -->
+          <div class="om-detail-list">
+            <div
+              v-for="row in flatDetailRows" :key="row.path"
+              class="om-item"
+              :class="{ 'row-drilldown': row.drillable }"
+              :style="{ paddingLeft: (4 + row.indent * 20) + 'px' }"
+              @click="row.drillable && togglePath(row.path)"
+            >
+              <div class="om-item-main">
+                <span class="dtoggle">{{ row.drillable ? (openNodes[row.path] ? '▼' : '▶') : '' }}</span>
+                <span class="prop-name">{{ row.key }}</span>
+                <span v-if="row.desc && row.desc.sbcProperty === false" class="tag tag-sbc-only ml-1">{{ $t('plugins.omBrowser.sbcOnly') }}</span>
+                <span v-else-if="row.desc && row.desc.sbcProperty === true" class="tag tag-sbc ml-1">{{ $t('plugins.omBrowser.sbc') }}</span>
+                <span :class="['live-val', 'om-item-value', liveValClass(row.value)]">{{ fmtLive(row.value) }}</span>
+                <v-btn icon variant="text" size="x-small" class="om-item-btn" :title="isPinned(row.path) ? $t('plugins.omBrowser.unpin') : $t('plugins.omBrowser.pin')" @click.stop="togglePin(row.path)"><v-icon size="x-small" :color="isPinned(row.path) ? 'primary' : undefined">{{ isPinned(row.path) ? 'mdi-pin' : 'mdi-pin-outline' }}</v-icon></v-btn>
+                <v-btn icon variant="text" size="x-small" class="om-item-btn" :title="$t('plugins.omBrowser.copyPath')" @click.stop="copyPath(row.path)"><v-icon size="x-small">mdi-content-copy</v-icon></v-btn>
+              </div>
+              <div class="om-item-sub">
+                <span class="prop-type">{{ row.typeName }}</span>
+                <span v-if="row.nullable" class="text-medium-emphasis">&nbsp;{{ $t('plugins.omBrowser.orNull') }}</span>
+                <span v-if="row.desc" class="om-item-desc">· {{ row.desc.summary }}</span>
+                <span v-for="m in (row.enumMembers || [])" :key="m" class="enum-pip ml-1">{{ m }}</span>
+              </div>
+            </div>
+          </div>
         </template>
 
         <!-- Reference class detail -->
@@ -483,8 +466,6 @@ const flatDetailRows = computed<Array<DetailRow>>(() => {
   buildFlatRows(rootObj, selectedNode.value, omModel, descriptions, openNodes, 0, out);
   return out;
 });
-
-const detailHasDesc = computed(() => flatDetailRows.value.some((r) => r.desc));
 
 // ── Reference detail panel ────────────────────────────────────
 const refClass = computed<OmClass | null>(() => {
@@ -956,19 +937,19 @@ onBeforeUnmount(() => {
   padding: 8px 12px; border-radius: 0 4px 4px 0;
 }
 
-/* Flat detail table */
-.detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.detail-table th {
-  text-align: left; font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.6);
-  padding: 4px 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12); white-space: nowrap;
-}
-.detail-table td { padding: 5px 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); vertical-align: top; }
-.detail-table tr:last-child td { border-bottom: none; }
-.detail-table tbody tr:hover td { background: rgba(var(--v-theme-on-surface), 0.04); }
-.detail-table .row-drilldown { cursor: pointer; }
-.detail-table .row-drilldown:hover td { background: rgba(var(--v-theme-primary), 0.06) !important; }
+/* Stacked detail list — name + value on top, type/description underneath */
+.om-detail-list { font-size: 13px; }
+.om-item { padding: 5px 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
+.om-item:last-child { border-bottom: none; }
+.om-item:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
+.om-item.row-drilldown { cursor: pointer; }
+.om-item.row-drilldown:hover { background: rgba(var(--v-theme-primary), 0.06); }
+.om-item-main { display: flex; align-items: center; gap: 4px; }
+.om-item-value { margin-left: auto; font-family: monospace; white-space: nowrap; }
+.om-item-btn { flex-shrink: 0; }
+.om-item-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-top: 2px; padding-left: 18px; font-size: 12px; line-height: 1.4; }
+.om-item-desc { color: rgba(var(--v-theme-on-surface), 0.7); margin-left: 4px; }
 
-.prop-name-cell { display: flex; align-items: center; }
 .dtoggle { width: 14px; font-size: 9px; color: rgba(var(--v-theme-on-surface), 0.6); text-align: center; flex-shrink: 0; }
 
 .prop-table { width: 100%; background: transparent; }
