@@ -17,8 +17,9 @@ A DuetWebControl (DWC) plugin that provides a richer Object Model browser than t
 
 ## Requirements
 
-- DuetWebControl 3.6 or later
-- Node.js (to run the prebuild script)
+- DuetWebControl 3.7 or later (the Vue 3 / Vuetify 4 stack). For the older Vue 2 DWC 3.6, use the
+  `main` branch; this `Next` branch targets the rebuilt Vue 3 DWC.
+- Node.js (to run the prebuild script and the plugin build)
 
 ## Building the plugin
 

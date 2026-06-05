@@ -1,27 +1,27 @@
 <template>
   <v-container fluid class="om-browser pa-0" style="height:100%;display:flex;flex-direction:column;overflow:hidden">
     <!-- Toolbar -->
-    <v-toolbar dense flat color="surface" class="flex-shrink-0">
-      <v-toolbar-title class="subtitle-2 primary--text">Object Model Browser</v-toolbar-title>
-      <span class="caption ml-2 grey--text">{{ modelRef }}</span>
+    <v-toolbar density="compact" flat color="surface" class="flex-shrink-0">
+      <v-toolbar-title class="text-subtitle-2 text-primary">Object Model Browser</v-toolbar-title>
+      <span class="text-caption ml-2 text-medium-emphasis">{{ modelRef }}</span>
       <v-spacer />
       <v-text-field
         v-model="searchTerm"
-        dense outlined hide-details clearable
+        density="compact" variant="outlined" hide-details clearable
         placeholder="Search properties..."
         prepend-inner-icon="mdi-magnify"
         style="max-width:260px"
       />
-      <v-btn icon small title="Expand All" @click="expandAll"><v-icon small>mdi-chevron-down-box-outline</v-icon></v-btn>
-      <v-btn icon small title="Collapse All" @click="collapseAll"><v-icon small>mdi-chevron-up-box-outline</v-icon></v-btn>
-      <v-btn icon small title="Refresh" @click="refresh"><v-icon small>mdi-refresh</v-icon></v-btn>
+      <v-btn icon variant="text" size="small" title="Expand All" @click="expandAll"><v-icon size="small">mdi-chevron-down-box-outline</v-icon></v-btn>
+      <v-btn icon variant="text" size="small" title="Collapse All" @click="collapseAll"><v-icon size="small">mdi-chevron-up-box-outline</v-icon></v-btn>
+      <v-btn icon variant="text" size="small" title="Refresh" @click="refresh"><v-icon size="small">mdi-refresh</v-icon></v-btn>
     </v-toolbar>
 
     <!-- Status bar -->
     <div style="display:flex;align-items:center;gap:8px;height:24px;flex-shrink:0;padding:0 16px;background:#1e1e2e;border-bottom:1px solid #313244">
       <span :style="{ width:'7px', height:'7px', borderRadius:'50%', background: hasLiveModel ? '#a6e3a1' : '#7f849c', display:'inline-block', flexShrink:0 }" />
-      <span class="caption grey--text">{{ hasLiveModel ? 'Live — ' + liveKeyCount + ' keys' : 'Reference only (no printer connected)' }}</span>
-      <span class="caption grey--text ml-4">{{ dsfLabel }}</span>
+      <span class="text-caption text-medium-emphasis">{{ hasLiveModel ? 'Live — ' + liveKeyCount + ' keys' : 'Reference only (no printer connected)' }}</span>
+      <span class="text-caption text-medium-emphasis ml-4">{{ dsfLabel }}</span>
     </div>
 
     <!-- Main split pane -->
@@ -30,7 +30,7 @@
       <!-- Tree panel -->
       <div ref="treePanel" style="width:340px;min-width:160px;flex-shrink:0;border-right:1px solid #313244;overflow-y:auto">
         <template v-if="searchTerm && searchTerm.trim()">
-          <div v-if="!searchMatches.length" class="pa-3 grey--text caption">No results</div>
+          <div v-if="!searchMatches.length" class="pa-3 text-medium-emphasis text-caption">No results</div>
           <div
             v-for="g in searchMatches" :key="g.clsName"
             :class="['tree-row', { 'tree-row--selected': treeHighlight === g.clsName }]"
@@ -62,20 +62,20 @@
 
       <!-- Detail panel -->
       <div ref="detailPanel" style="flex:1;overflow-y:auto;padding:16px 20px">
-        <div v-if="!selectedNode" class="grey--text text-center" style="margin-top:60px;font-size:14px;line-height:2">
+        <div v-if="!selectedNode" class="text-medium-emphasis text-center" style="margin-top:60px;font-size:14px;line-height:2">
           Select an item in the tree to view details.
         </div>
 
         <!-- Live object detail — flat table with expandable rows -->
         <template v-else-if="detailMode === 'live'">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-            <h2 class="title primary--text">{{ detailLabel }}</h2>
+            <h2 class="text-h6 text-primary">{{ detailLabel }}</h2>
             <code class="om-path-code">{{ selectedNode }}</code>
-            <v-btn icon x-small @click="copyPath(selectedNode)" title="Copy path"><v-icon x-small>mdi-content-copy</v-icon></v-btn>
+            <v-btn icon variant="text" size="x-small" @click="copyPath(selectedNode)" title="Copy path"><v-icon size="x-small">mdi-content-copy</v-icon></v-btn>
           </div>
           <div v-if="detailClassDesc" class="class-desc mb-4">
             {{ detailClassDesc.summary }}
-            <div v-if="detailClassDesc.remarks" class="grey--text mt-1" style="font-size:12px;font-style:italic">{{ detailClassDesc.remarks }}</div>
+            <div v-if="detailClassDesc.remarks" class="text-medium-emphasis mt-1" style="font-size:12px;font-style:italic">{{ detailClassDesc.remarks }}</div>
           </div>
 
           <table class="detail-table">
@@ -89,9 +89,8 @@
               </tr>
             </thead>
             <tbody>
-              <template v-for="row in flatDetailRows">
+              <template v-for="row in flatDetailRows" :key="row.path">
                 <tr
-                  :key="row.path"
                   :class="{ 'row-drilldown': row.drillable }"
                   @click="row.drillable && togglePath(row.path)"
                 >
@@ -106,17 +105,17 @@
                   <td><span :class="['live-val', liveValClass(row.value)]">{{ fmtLive(row.value) }}</span></td>
                   <td>
                     <span class="prop-type">{{ row.typeName }}</span>
-                    <span v-if="row.nullable" class="grey--text" style="font-size:11px"> or null</span>
+                    <span v-if="row.nullable" class="text-medium-emphasis" style="font-size:11px"> or null</span>
                     <div v-if="row.enumMembers" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">
                       <span v-for="m in row.enumMembers" :key="m" class="enum-pip">{{ m }}</span>
                     </div>
                   </td>
                   <td v-if="detailHasDesc" class="desc-cell">
                     <template v-if="row.desc">{{ row.desc.summary }}</template>
-                    <span v-else class="grey--text">—</span>
+                    <span v-else class="text-medium-emphasis">—</span>
                   </td>
                   <td style="text-align:center;padding:0 2px">
-                    <v-btn icon x-small :title="'Copy: ' + row.path" @click.stop="copyPath(row.path)"><v-icon x-small>mdi-content-copy</v-icon></v-btn>
+                    <v-btn icon variant="text" size="x-small" :title="'Copy: ' + row.path" @click.stop="copyPath(row.path)"><v-icon size="x-small">mdi-content-copy</v-icon></v-btn>
                   </td>
                 </tr>
               </template>
@@ -127,20 +126,20 @@
         <!-- Reference class detail -->
         <template v-else-if="detailMode === 'ref' && refClass">
           <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap">
-            <h2 class="title primary--text">{{ refClass.name }}</h2>
+            <h2 class="text-h6 text-primary">{{ refClass.name }}</h2>
           </div>
           <div v-if="currentPaths.length" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
             <span v-for="p in currentPaths" :key="p" style="display:inline-flex;align-items:center;gap:2px">
               <code class="om-path-code">{{ p }}</code>
-              <v-btn icon x-small @click="copyPath(p)" title="Copy path"><v-icon x-small>mdi-content-copy</v-icon></v-btn>
+              <v-btn icon variant="text" size="x-small" @click="copyPath(p)" title="Copy path"><v-icon size="x-small">mdi-content-copy</v-icon></v-btn>
             </span>
           </div>
           <div v-if="refClassDesc" class="class-desc mb-4">
             {{ refClassDesc.summary }}
-            <div v-if="refClassDesc.remarks" class="grey--text mt-1" style="font-size:12px;font-style:italic">{{ refClassDesc.remarks }}</div>
+            <div v-if="refClassDesc.remarks" class="text-medium-emphasis mt-1" style="font-size:12px;font-style:italic">{{ refClassDesc.remarks }}</div>
           </div>
-          <div v-if="!refClass.props || !refClass.props.length" class="grey--text caption mt-4">No properties.</div>
-          <v-simple-table v-else dense class="prop-table">
+          <div v-if="!refClass.props || !refClass.props.length" class="text-medium-emphasis text-caption mt-4">No properties.</div>
+          <v-table v-else density="compact" class="prop-table">
             <template #default>
               <thead>
                 <tr>
@@ -160,13 +159,13 @@
                 >
                   <td>
                     <span :class="['prop-name', { 'prop-name--readonly': p.readonly }]">{{ p.name }}</span>
-                    <span v-if="refDrillTarget(p)" class="primary--text ml-1">›</span>
+                    <span v-if="refDrillTarget(p)" class="text-primary ml-1">›</span>
                     <span v-if="refPropDesc(p) && refPropDesc(p).sbcProperty === false" class="tag tag-sbc-only ml-1">SBC only</span>
                     <span v-else-if="refPropDesc(p) && refPropDesc(p).sbcProperty === true" class="tag tag-sbc ml-1">SBC</span>
                   </td>
                   <td>
                     <span :class="['prop-type', { 'prop-type--link': refTypeLink(p) }]" @click.stop="refTypeLink(p) && refNavigate(refTypeLink(p).kind, refTypeLink(p).name)">{{ refTypeDisplay(p) }}</span>
-                    <span v-if="p.nullable" class="grey--text" style="font-size:11px"> or null</span>
+                    <span v-if="p.nullable" class="text-medium-emphasis" style="font-size:11px"> or null</span>
                     <div v-if="omModel.enums[p.type]" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
                       <span v-for="m in omModel.enums[p.type].members" :key="m.key" class="enum-pip">{{ m.key }}</span>
                     </div>
@@ -175,23 +174,23 @@
                   <td v-if="hasAnyRefDesc" class="desc-cell">
                     <template v-if="refPropDesc(p)">
                       {{ refPropDesc(p).summary }}
-                      <div v-if="refPropDesc(p).remarks" class="grey--text mt-1" style="font-size:11px;font-style:italic">{{ refPropDesc(p).remarks }}</div>
+                      <div v-if="refPropDesc(p).remarks" class="text-medium-emphasis mt-1" style="font-size:11px;font-style:italic">{{ refPropDesc(p).remarks }}</div>
                     </template>
-                    <span v-else class="grey--text">—</span>
+                    <span v-else class="text-medium-emphasis">—</span>
                   </td>
                   <td style="text-align:center">
-                    <v-btn icon x-small :title="'Copy: ' + refPropPath(p)" @click.stop="copyPath(refPropPath(p))"><v-icon x-small>mdi-content-copy</v-icon></v-btn>
+                    <v-btn icon variant="text" size="x-small" :title="'Copy: ' + refPropPath(p)" @click.stop="copyPath(refPropPath(p))"><v-icon size="x-small">mdi-content-copy</v-icon></v-btn>
                   </td>
                 </tr>
               </tbody>
             </template>
-          </v-simple-table>
+          </v-table>
         </template>
 
         <!-- Reference enum detail -->
         <template v-else-if="detailMode === 'ref-enum' && refEnum">
-          <h2 class="title primary--text mb-2">{{ refEnum.name }}</h2>
-          <v-simple-table dense class="prop-table">
+          <h2 class="text-h6 text-primary mb-2">{{ refEnum.name }}</h2>
+          <v-table density="compact" class="prop-table">
             <template #default>
               <thead><tr><th>Value</th><th>Description</th></tr></thead>
               <tbody>
@@ -201,20 +200,20 @@
                 </tr>
               </tbody>
             </template>
-          </v-simple-table>
+          </v-table>
         </template>
       </div>
     </div>
 
-    <v-snackbar v-model="copiedSnackbar" timeout="1500" bottom right color="success" :elevation="2">
-      <v-icon small class="mr-1">mdi-check</v-icon> Copied
+    <v-snackbar v-model="copiedSnackbar" timeout="1500" location="bottom right" color="success" :elevation="2">
+      <v-icon size="small" class="mr-1">mdi-check</v-icon> Copied
     </v-snackbar>
   </v-container>
 </template>
 
 <script>
 import { omModel as BUNDLED_MODEL, omDescriptions as BUNDLED_DESCRIPTIONS, MODEL_REF, DSF_REF_LABEL } from './model-data.js'
-import store from '@/store'
+import { useMachineStore } from '@/stores/machine'
 
 // ── Pure helpers (no Vue dependency) ──────────────────────────
 function resolveCollectionType (t) {
@@ -341,9 +340,13 @@ export default {
 
   computed: {
     liveModel () {
-      try { return store.state.machine.model } catch (e) { return null }
+      try { return useMachineStore().model } catch (e) { return null }
     },
-    hasLiveModel () { return !!this.liveModel },
+    // In single-machine Vue 3 DWC the object model always exists (default values when offline), so
+    // gate "live" mode on the connection itself to keep the offline reference-schema view.
+    hasLiveModel () {
+      try { return useMachineStore().isConnected && !!this.liveModel } catch (e) { return false }
+    },
     liveKeyCount () { return this.liveModel ? Object.keys(this.liveModel).length : 0 },
 
     // ── Tree ─────────────────────────────────────────────────────
@@ -432,7 +435,7 @@ export default {
     window.addEventListener('mousemove', this.onMouseMove)
     window.addEventListener('mouseup', this.onMouseUp)
   },
-  beforeDestroy () {
+  beforeUnmount () {
     window.removeEventListener('mousemove', this.onMouseMove)
     window.removeEventListener('mouseup', this.onMouseUp)
   },
@@ -493,7 +496,7 @@ export default {
     // Tree chevron click: toggle expansion, keep detail anchored at parent
     toggleNode (row) {
       const opening = !this.openNodes[row.id]
-      this.$set(this.openNodes, row.id, opening)
+      this.openNodes[row.id] = opening
       if (row.isLive) {
         // Show the parent in the detail panel so the expanded child appears inline
         const parent = this.parentPath(row.id)
@@ -507,7 +510,7 @@ export default {
     // Detail row chevron click: toggle openNodes (same state tree uses), expand ancestors
     togglePath (path) {
       const opening = !this.openNodes[path]
-      this.$set(this.openNodes, path, opening)
+      this.openNodes[path] = opening
       if (opening) {
         // Ensure all ancestors are open so the tree row is visible
         const segs = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean)
@@ -515,7 +518,7 @@ export default {
         for (let i = 0; i < segs.length - 1; i++) {
           parts.push(segs[i])
           const id = parts.join('.').replace(/\.(\d+)(?=\.|$)/g, '[$1]')
-          if (!this.openNodes[id]) this.$set(this.openNodes, id, true)
+          if (!this.openNodes[id]) this.openNodes[id] = true
         }
         this.treeHighlight = path
       } else {

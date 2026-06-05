@@ -1,36 +1,46 @@
 @echo off
 setlocal
 
-set DWC_DIR=c:\Users\live\Documents\Input Shaping\DuetWebControl-3.6-dev
+:: Path to a local checkout of the Vue 3 DuetWebControl (3.7+) source tree.
+set DWC_DIR=c:\Users\live\Documents\Github\DuetWebControl
 set PLUGIN_ID=OmBrowser
 
 :: %~dp0 has a trailing backslash — strip it for safe quoting
 set PLUGIN_REPO=%~dp0
 if "%PLUGIN_REPO:~-1%"=="\" set PLUGIN_REPO=%PLUGIN_REPO:~0,-1%
 
-echo Cleaning stale cache...
-if exist "%DWC_DIR%\src\plugins\%PLUGIN_ID%" rmdir /s /q "%DWC_DIR%\src\plugins\%PLUGIN_ID%"
-del /q "%DWC_DIR%\dist\%PLUGIN_ID%-*.zip" 2>nul
-del /q "%DWC_DIR%\dist\js\%PLUGIN_ID%*" 2>nul
-del /q "%DWC_DIR%\dist\css\%PLUGIN_ID%*" 2>nul
-if exist "%DWC_DIR%\node_modules\.cache" rmdir /s /q "%DWC_DIR%\node_modules\.cache"
+:: Regenerate the bundled model + descriptions (gitignored). Needs network the first time to fetch
+:: the DSF docs; safe to re-run.
+echo Generating model data...
+call node "%PLUGIN_REPO%\prebuild.js"
+if errorlevel 1 (
+    echo Prebuild failed.
+    exit /b 1
+)
 
-echo Building plugin...
+echo Cleaning stale build artifacts...
+if exist "%PLUGIN_REPO%\dist" rmdir /s /q "%PLUGIN_REPO%\dist"
+if exist "%PLUGIN_REPO%\pkg" rmdir /s /q "%PLUGIN_REPO%\pkg"
+del /q "%PLUGIN_REPO%\%PLUGIN_ID%-*.zip" 2>nul
+
+echo Building plugin against %DWC_DIR% ...
 cd /d "%DWC_DIR%"
-call npm run build-plugin -- "%PLUGIN_REPO%"
+:: build-plugin-pkg packages a content-hashed, fully-installable ZIP (dwcFiles manifest populated).
+call npm run build-plugin-pkg -- "%PLUGIN_REPO%"
 if errorlevel 1 (
     echo Build failed.
     exit /b 1
 )
 
-for /f "delims=" %%f in ('dir /b /o-d "%DWC_DIR%\dist\%PLUGIN_ID%-*.zip" 2^>nul') do (
-    set ZIP=%%f
-    goto :found
+:: build-plugin-pkg writes the ZIP into the plugin repo itself; tidy the intermediate dirs.
+if exist "%PLUGIN_REPO%\dist" rmdir /s /q "%PLUGIN_REPO%\dist"
+if exist "%PLUGIN_REPO%\pkg" rmdir /s /q "%PLUGIN_REPO%\pkg"
+
+for /f "delims=" %%f in ('dir /b /o-d "%PLUGIN_REPO%\%PLUGIN_ID%-*.zip" 2^>nul') do (
+    echo Done: %PLUGIN_REPO%\%%f
+    goto :done
 )
-echo No ZIP found in dist\
+echo No ZIP produced.
 exit /b 1
 
-:found
-echo Copying %ZIP% to plugin repo...
-copy /y "%DWC_DIR%\dist\%ZIP%" "%PLUGIN_REPO%\%ZIP%" >nul
-echo Done: %PLUGIN_REPO%\%ZIP%
+:done
