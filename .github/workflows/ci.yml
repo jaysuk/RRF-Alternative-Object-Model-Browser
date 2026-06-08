@@ -1,0 +1,13 @@
+name: CI
+
+on:
+  push:
+    branches: [Next, main]
+  pull_request:
+
+jobs:
+  test:
+    uses: jaysuk/dwc-plugin-test-kit/.github/workflows/dwc-plugin-ci.yml@v0.1.0
+    with:
+      dwc-ref: next
+      kit-ref: v0.1.0
