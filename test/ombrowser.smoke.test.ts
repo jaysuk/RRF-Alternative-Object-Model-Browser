@@ -1,6 +1,6 @@
 import { flushPromises } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import { makeObjectModel, mountInDwc, setConnected, setModel } from "dwc-plugin-test-kit";
+import { loadObjectModel, makeObjectModel, mountInDwc, setConnected, setModel } from "dwc-plugin-test-kit";
 
 import OmBrowser from "../src/OmBrowser.vue";
 
@@ -50,6 +50,20 @@ describe("OmBrowser mounts in a DWC-like environment", () => {
     await flushPromises();
     // Detail panel switched out of the empty-state prompt into the live property list.
     expect(w.find(".om-detail-list").exists()).toBe(true);
+    w.unmount();
+  });
+
+  it("walks a fuller realistic model (loadObjectModel) without throwing", async () => {
+    setConnected(true);
+    setModel(loadObjectModel()); // richer standalone Duet 3 model: directories, sensors, limits, volumes…
+    const w = mount();
+    await flushPromises();
+    const labels = w.findAll(".tree-row .tree-name").map((n) => n.text());
+    // Top-level keys present in the realistic sample but not the thin fixture.
+    expect(labels).toContain("directories");
+    expect(labels).toContain("sensors");
+    // `global` (a Map in the loaded model) renders as a drillable node.
+    expect(labels).toContain("global");
     w.unmount();
   });
 

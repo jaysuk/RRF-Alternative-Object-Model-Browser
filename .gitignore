@@ -11,3 +11,4 @@ pkg/
 
 # Node
 node_modules/
+coverage/
