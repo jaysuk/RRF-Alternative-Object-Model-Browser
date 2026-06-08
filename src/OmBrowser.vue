@@ -241,7 +241,7 @@ import {
   type OmProp,
   type OmDesc,
 } from "./model-data.js";
-import { buildReport, downloadReport, installErrorCapture } from "./diagnostics";
+import { buildReport, copyText as copyToClipboard, downloadReport, installErrorCapture } from "dwc-plugin-runtime";
 
 const PLUGIN_ID = "OmBrowser";
 
@@ -773,22 +773,12 @@ function liveValClass(val: unknown): string {
 }
 
 // ── Copy / export ─────────────────────────────────────────────
+// Clipboard mechanics (execCommand-first for plain-HTTP Duets) live in the shared runtime package;
+// this just adds the success toast.
 function copyText(text: string, titleKey: string): void {
-  const done = () => uiStore.makeNotification(LogLevel.success, t(titleKey), text, 1500);
-  // navigator.clipboard is unreliable on a Duet served over plain HTTP, so try execCommand first.
-  try {
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
-    document.body.appendChild(el);
-    el.focus();
-    el.select();
-    document.execCommand("copy");
-    document.body.removeChild(el);
-    done();
-  } catch (e) {
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done).catch(() => { /* ignore */ });
-  }
+  void copyToClipboard(text).then((ok) => {
+    if (ok) uiStore.makeNotification(LogLevel.success, t(titleKey), text, 1500);
+  });
 }
 function copyPath(path: string | null): void { if (path) copyText(path, "plugins.omBrowser.copiedPath"); }
 function jsonFor(path: string | null): string {
