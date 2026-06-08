@@ -15,6 +15,7 @@
       <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.expandAll')" @click="expandAll"><v-icon size="small">mdi-chevron-down-box-outline</v-icon></v-btn>
       <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.collapseAll')" @click="collapseAll"><v-icon size="small">mdi-chevron-up-box-outline</v-icon></v-btn>
       <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.refresh')" @click="refresh"><v-icon size="small">mdi-refresh</v-icon></v-btn>
+      <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.diagnostics')" @click="downloadDiagnostics"><v-icon size="small">mdi-bug-outline</v-icon></v-btn>
     </v-toolbar>
 
     <!-- Status bar -->
@@ -240,6 +241,7 @@ import {
   type OmProp,
   type OmDesc,
 } from "./model-data.js";
+import { buildReport, downloadReport, installErrorCapture } from "./diagnostics";
 
 const PLUGIN_ID = "OmBrowser";
 
@@ -443,6 +445,11 @@ const treeRows = computed<Array<TreeRow>>(() => {
 });
 
 function refresh(): void { modelTick.value++; }
+
+// Diagnostics: bundle versions + recent errors + a privacy-scrubbed object model for a bug report.
+function downloadDiagnostics(): void {
+  downloadReport(buildReport({ pluginId: PLUGIN_ID, model: machineStore.model }));
+}
 
 // ── Live detail panel ─────────────────────────────────────────
 const detailLabel = computed(() => {
@@ -863,7 +870,9 @@ function onMouseUp(): void {
 
 // ── Lifecycle ─────────────────────────────────────────────────
 let tickTimer: ReturnType<typeof setInterval> | null = null;
+let uninstallErrorCapture: (() => void) | null = null;
 onMounted(() => {
+  uninstallErrorCapture = installErrorCapture(); // buffer errors for the diagnostics report
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
   // Throttled live refresh (~4/sec) while connected; reference mode is static.
@@ -880,6 +889,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("mouseup", onMouseUp);
   if (tickTimer) clearInterval(tickTimer);
   if (searchTimer) clearTimeout(searchTimer);
+  if (uninstallErrorCapture) uninstallErrorCapture();
 });
 </script>
 

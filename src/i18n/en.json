@@ -7,6 +7,7 @@
   "expandAll": "Expand all",
   "collapseAll": "Collapse all",
   "refresh": "Refresh",
+  "diagnostics": "Download diagnostics (versions + scrubbed model)",
   "live": "Live — {count} keys",
   "reference": "Reference only (no printer connected)",
   "dsf": "DSF: {ref} ({count} types)",
