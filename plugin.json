@@ -2,6 +2,6 @@
   "id": "OmBrowser",
   "name": "Object Model Browser",
   "author": "jaysuk",
-  "version": "2.0.0",
-  "dwcVersion": "3.7"
+  "version": "2.1.0",
+  "dwcVersion": "auto-major"
 }

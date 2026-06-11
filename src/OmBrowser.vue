@@ -16,7 +16,100 @@
       <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.collapseAll')" @click="collapseAll"><v-icon size="small">mdi-chevron-up-box-outline</v-icon></v-btn>
       <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.refresh')" @click="refresh"><v-icon size="small">mdi-refresh</v-icon></v-btn>
       <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.diagnostics')" @click="downloadDiagnostics"><v-icon size="small">mdi-bug-outline</v-icon></v-btn>
+      <!-- Update badge: shown when a compatible update is available -->
+      <v-btn icon variant="text" size="small" :title="$t('plugins.omBrowser.updates.title')" @click="updatesOpen = true">
+        <v-badge v-if="updateState?.scenario === 'pluginUpdate'" color="primary" dot>
+          <v-icon size="small">mdi-update</v-icon>
+        </v-badge>
+        <v-icon v-else size="small">mdi-update</v-icon>
+      </v-btn>
     </v-toolbar>
+
+    <!-- Updates dialog -->
+    <v-dialog v-model="updatesOpen" width="560" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="me-2">mdi-update</v-icon>
+          {{ $t('plugins.omBrowser.updates.title') }}
+          <v-spacer />
+          <v-btn icon="mdi-close" variant="text" density="comfortable" @click="updatesOpen = false" />
+        </v-card-title>
+        <v-divider />
+        <v-card-text>
+          <!-- Reload prompt after successful one-click update -->
+          <v-alert v-if="pendingReload" type="success" variant="tonal" density="comfortable" class="mb-3">
+            <div class="d-flex align-center flex-wrap ga-2">
+              <div class="flex-grow-1">{{ $t('plugins.omBrowser.updates.installedReloadBanner') }}</div>
+              <v-btn color="success" prepend-icon="mdi-restart" @click="reloadPage()">
+                {{ $t('plugins.omBrowser.updates.reloadNow') }}
+              </v-btn>
+            </div>
+          </v-alert>
+
+          <!-- Compatible plugin update available -->
+          <v-alert v-else-if="updateState?.scenario === 'pluginUpdate'" type="info" variant="tonal" density="comfortable" class="mb-3">
+            <div class="d-flex align-center flex-wrap ga-2">
+              <div class="flex-grow-1">
+                <div class="font-weight-medium">{{ $t('plugins.omBrowser.updates.available', { version: updateState.latestVersion }) }}</div>
+                <div class="text-caption">{{ $t('plugins.omBrowser.updates.installedNow', { version: updateState.currentVersion }) }}</div>
+                <div v-if="!isConnected" class="text-caption text-warning">{{ $t('plugins.omBrowser.updates.needConnection') }}</div>
+              </div>
+              <v-btn color="primary" :loading="applying" :disabled="!isConnected" prepend-icon="mdi-download" @click="doApply">
+                {{ $t('plugins.omBrowser.updates.updateNow') }}
+              </v-btn>
+              <v-btn variant="text" @click="notesOpen = true">{{ $t('plugins.omBrowser.updates.notes') }}</v-btn>
+            </div>
+          </v-alert>
+
+          <!-- Needs newer DWC first -->
+          <v-alert v-else-if="updateState?.scenario === 'dwcUpdate'" type="warning" variant="tonal" density="comfortable" class="mb-3">
+            <div class="font-weight-medium">{{ $t('plugins.omBrowser.updates.available', { version: updateState.latestVersion }) }}</div>
+            <div class="text-caption">{{ $t('plugins.omBrowser.updates.needsDwc', { dwc: updateState.requiredDwc, running: updateState.runningDwc }) }}</div>
+            <v-btn class="mt-1" size="small" variant="text" @click="notesOpen = true">{{ $t('plugins.omBrowser.updates.notes') }}</v-btn>
+          </v-alert>
+
+          <v-alert v-else-if="updateState?.scenario === 'upToDate'" type="success" variant="tonal" density="compact" class="mb-3">
+            {{ $t('plugins.omBrowser.updates.upToDate', { version: updateState.currentVersion }) }}
+          </v-alert>
+
+          <div class="d-flex flex-wrap ga-2">
+            <v-btn size="small" variant="tonal" prepend-icon="mdi-refresh" :loading="checking" @click="doCheckNow">
+              {{ $t('plugins.omBrowser.updates.checkNow') }}
+            </v-btn>
+          </div>
+          <v-switch :model-value="checksEnabled" color="primary" density="compact" hide-details class="mt-2"
+                    :label="$t('plugins.omBrowser.updates.autoCheck')" @update:model-value="onToggleChecks" />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Release notes dialog -->
+    <v-dialog v-model="notesOpen" width="660" scrollable>
+      <v-card>
+        <v-card-title>{{ $t('plugins.omBrowser.updates.releaseNotes', { version: updateState?.latestVersion }) }}</v-card-title>
+        <v-divider />
+        <v-card-text class="text-body-small" style="word-break:break-word;font-family:system-ui,-apple-system,sans-serif;max-height:60vh;overflow-y:auto">
+          <div v-if="historyLoading" class="d-flex justify-center pa-4"><v-progress-circular indeterminate size="32" /></div>
+          <template v-else-if="releaseHistory.length > 0">
+            <div v-for="entry in releaseHistory" :key="entry.version" class="mb-4">
+              <div class="text-subtitle-2 font-weight-bold mb-1">{{ entry.name }}</div>
+              <div v-html="formatReleaseNotesHtml(entry.notes)" />
+            </div>
+          </template>
+          <template v-else>
+            <div v-html="fallbackNotesHtml" />
+          </template>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="notesOpen = false">{{ $t('plugins.omBrowser.updates.close') }}</v-btn>
+          <v-btn v-if="updateState?.releaseUrl" color="primary" variant="text" :href="updateState.releaseUrl" target="_blank" rel="noopener">
+            {{ $t('plugins.omBrowser.updates.viewOnGithub') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Status bar -->
     <div class="om-status flex-shrink-0">
@@ -241,7 +334,9 @@ import {
   type OmProp,
   type OmDesc,
 } from "./model-data.js";
-import { buildReport, copyText as copyToClipboard, downloadReport, installErrorCapture } from "dwc-plugin-runtime";
+import { buildReport, cleanReleaseNotes, copyText as copyToClipboard, downloadReport, fetchReleaseHistory, formatReleaseNotesHtml, installErrorCapture, type ReleaseHistoryEntry } from "dwc-plugin-runtime";
+
+import { applying, checking, pendingReload, runUpdateCheck, setUpdateChecksEnabled, updateChecksEnabled, updateState, applyUpdateNow } from "./updateCheck.js";
 
 const PLUGIN_ID = "OmBrowser";
 
@@ -356,6 +451,51 @@ const omModel = BUNDLED_MODEL;
 const descriptions = BUNDLED_DESCRIPTIONS;
 const modelRef = MODEL_REF;
 const dsfLabel = `DSF: ${DSF_REF_LABEL} (${Object.keys(BUNDLED_DESCRIPTIONS).length} types)`;
+
+// ── Self-update state ─────────────────────────────────────────
+const isConnected = computed(() => machineStore.isConnected);
+const updatesOpen = ref(false);
+const notesOpen = ref(false);
+const checksEnabled = ref(updateChecksEnabled());
+const releaseHistory = ref<ReleaseHistoryEntry[]>([]);
+const historyLoading = ref(false);
+let historyFetchedFor: string | null = null;
+
+function installedOmVersion(): string {
+  const plugins = (machineStore.model as { plugins?: Map<string, { version?: string }> }).plugins;
+  return plugins?.get("OmBrowser")?.version ?? "0.0.0";
+}
+
+const fallbackNotesHtml = computed(() =>
+  formatReleaseNotesHtml(cleanReleaseNotes(updateState.value?.notes ?? "")),
+);
+
+watch(notesOpen, async (open) => {
+  if (!open) return;
+  const latest = updateState.value?.latestVersion ?? null;
+  if (latest && historyFetchedFor === latest) return;
+  historyLoading.value = true;
+  try {
+    releaseHistory.value = await fetchReleaseHistory({
+      owner: "jaysuk",
+      repo: "RRF-Alternative-Object-Model-Browser",
+      sinceVersion: installedOmVersion(),
+    });
+    historyFetchedFor = latest;
+  } finally {
+    historyLoading.value = false;
+  }
+});
+
+function doCheckNow() { runUpdateCheck({ force: true }); }
+function doApply() { applyUpdateNow(); }
+function reloadPage() { window.location.reload(); }
+function onToggleChecks(value: boolean | null) {
+  const on = value === true;
+  checksEnabled.value = on;
+  setUpdateChecksEnabled(on);
+  if (on) runUpdateCheck({ force: true });
+}
 
 // ── State ─────────────────────────────────────────────────────
 const openNodes = reactive<Record<string, boolean>>({});
@@ -865,6 +1005,8 @@ onMounted(() => {
   uninstallErrorCapture = installErrorCapture(); // buffer errors for the diagnostics report
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
+  // Throttled on-load update check (once per day, opt-out via LS_ENABLED).
+  runUpdateCheck({ notify: true });
   // Throttled live refresh (~4/sec) while connected; reference mode is static.
   tickTimer = setInterval(() => { if (machineStore.isConnected) modelTick.value++; }, 250);
   // Deep-link: open the requested path on load.

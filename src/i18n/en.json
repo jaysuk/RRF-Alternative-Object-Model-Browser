@@ -34,5 +34,27 @@
   "sbc": "SBC",
   "orNull": "or null",
   "noProperties": "No properties.",
-  "propCount": "{count} props"
+  "propCount": "{count} props",
+  "updates": {
+    "title": "Updates",
+    "checkNow": "Check now",
+    "available": "Version {version} is available",
+    "installedNow": "You have {version}",
+    "updateNow": "Update now",
+    "notes": "Release notes",
+    "releaseNotes": "Release notes — {version}",
+    "viewOnGithub": "View on GitHub",
+    "close": "Close",
+    "needConnection": "Connect to your machine to install the update.",
+    "needsDwc": "Needs DuetWebControl {dwc} (you have {running}). Update DuetWebControl first.",
+    "upToDate": "Up to date (v{version}).",
+    "autoCheck": "Check for updates on load",
+    "notifyPlugin": "Object Model Browser {version} is available — click the update icon to install.",
+    "notifyDwc": "Object Model Browser {version} is available but needs DuetWebControl {dwc}.",
+    "applyFailed": "Couldn't install the update automatically.",
+    "corsBlocked": "One-click update blocked. Downloading the ZIP directly — upload it to DWC's plugin installer.",
+    "installedReload": "Object Model Browser {version} installed. Reload the page to finish.",
+    "installedReloadBanner": "Update installed — reload the page to start using the new version.",
+    "reloadNow": "Reload now"
+  }
 }
