@@ -6,7 +6,7 @@
  */
 import { ref } from "vue";
 
-import { announceUpdate, applyUpdate, checkForUpdate, clearAnnouncedUpdate, compareVersions, isUpdateHostActive, type UpdateResult } from "dwc-plugin-runtime";
+import { announceUpdate, applyUpdate, checkForUpdate, clearAnnouncedUpdate, compareVersions, isUpdateHostActive, registerUpdateChecker, type UpdateResult } from "dwc-plugin-runtime";
 
 import i18n from "@/i18n";
 import { useMachineStore } from "@/stores/machine";
@@ -115,6 +115,9 @@ export async function runUpdateCheck(opts: { force?: boolean; notify?: boolean }
     checking.value = false;
   }
 }
+
+// Expose this plugin's check to the shared hub, so another plugin's "Check now" refreshes it too.
+registerUpdateChecker(PLUGIN_ID, async () => { await runUpdateCheck({ force: true }); });
 
 export function dismissCurrentUpdate(): void {
   if (updateState.value?.latestVersion) {
