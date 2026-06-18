@@ -5,7 +5,11 @@ import GCodeFileInfo from "./GCodeFileInfo";
 
 export class Layer extends ModelObject {
     duration: number = 0;
+    /**
+     * @deprecated use filamentUsage instead
+     */
     filament: Array<number> = new Array<number>();
+    filamentUsage: number = 0;
     fractionPrinted: number = 0;
     height: number = 0;
     temperatures: Array<number> = new Array<number>();

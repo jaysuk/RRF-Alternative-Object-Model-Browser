@@ -13,7 +13,7 @@ export class Tool extends ModelObject {
     axes: Array<Array<number>> = [];
     extruders: Array<number> = [];
     fans: Array<number> = [];
-    /** @deprecated Use feedForwardPwm instead */
+    /** @deprecated use feedForwardPwm instead */
     feedForward: Array<number> = [];
     feedForwardAdvance: number = 0;
     feedForwardPwm: Array<number> = [];

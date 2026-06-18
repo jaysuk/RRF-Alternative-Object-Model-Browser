@@ -5,6 +5,7 @@ import Axis from "./Axis";
 import Extruder from "./Extruder";
 import InputShaping from "./InputShaping";
 import KeepoutZone from "./KeepoutZone";
+import MotionSystem from "./MotionSystem";
 import MoveCalibration from "./MoveCalibration";
 import MoveCompensation from "./MoveCompensation";
 
@@ -47,14 +48,30 @@ export class Move extends ModelObject {
     kinematics: Kinematics = new CoreKinematics(KinematicsName.cartesian);
     limitAxes: boolean = true;
     noMovesBeforeHoming: boolean = true;
+    readonly motionSystems: ModelCollection<MotionSystem> = new ModelCollection(MotionSystem);
+    /**
+     * @deprecated use motionSystems[].printingAcceleration instead
+     */
     printingAcceleration: number = 10000;
     readonly queue: ModelCollection<MoveQueueItem> = new ModelCollection(MoveQueueItem);
+    /**
+     * @deprecated use motionSystems[].rotation instead
+     */
     readonly rotation: MoveRotation = new MoveRotation();
     readonly shaping: InputShaping = new InputShaping();
     speedFactor: number = 1;
+    /**
+     * @deprecated use motionSystems[].travelAcceleration instead
+     */
     travelAcceleration: number = 10000;
-    usingSCurve: boolean | null = null;
+    usingSCurve: boolean = false;
+    /**
+     * @deprecated use motionSystems[].virtualEPos instead
+     */
     virtualEPos: number = 0;
+    /**
+     * @deprecated use motionSystems[].workplaceNumber instead
+     */
     workplaceNumber: number = 0;
 }
 
@@ -69,4 +86,5 @@ export * from "./InputShaping";
 export * from "./KeepoutZone";
 export * from "./Microstepping";
 export * from "./MoveCalibration";
+export * from "./MotionSystem";
 export * from "./MoveCompensation";

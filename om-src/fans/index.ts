@@ -1,7 +1,6 @@
 import ModelObject from "../ModelObject";
 
 export class FanThermostaticControl extends ModelObject {
-    heaters: Array<number> = [];                // *** deprecated as of v3.5, use sensors instead
     highTemperature: number | null = null;
     lowTemperature: number | null = null;
     sensors: Array<number> = [];

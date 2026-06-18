@@ -13,8 +13,8 @@ const path = require('path');
 const https = require('https');
 
 // ── Config ────────────────────────────────────────────────────
-const OM_REF = 'v3.6-dev';
-const DSF_REF = 'v3.6-dev';
+const OM_REF = 'v3.7-dev';
+const DSF_REF = 'v3.7-dev';
 const DSF_REPO = 'Duet3D/DuetSoftwareFramework';
 const DSF_OM_PATH = 'src/DuetAPI/ObjectModel';
 const OM_SRC_DIR = path.resolve(__dirname, 'om-src');

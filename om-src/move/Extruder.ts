@@ -8,6 +8,12 @@ export class ExtruderNonlinear extends ModelObject {
     upperLimit: number = 0.2;
 }
 
+export class ExtruderPressureAdvance extends ModelObject {
+    d: number | null = null;
+    k0: number = 0;
+    k1: number = 0;
+}
+
 export class Extruder extends ModelObject {
     constructor() {
         super();
@@ -27,6 +33,10 @@ export class Extruder extends ModelObject {
     percentStstCurrent: number | null = null;
     phaseStep: boolean | null = null;
     position: number = 0;
+    readonly pressAdv: ExtruderPressureAdvance = new ExtruderPressureAdvance();
+    /**
+     * @deprecated use pressAdv instead
+     */
     pressureAdvance: number = 0;
     printingJerk: number = 15;
     rawPosition: number = 0;

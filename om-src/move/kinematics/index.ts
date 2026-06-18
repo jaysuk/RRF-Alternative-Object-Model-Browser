@@ -1,5 +1,5 @@
 import { IModelObject } from "../../ModelObject";
-import KinematicsBase, { KinematicsName, ZLeadscrewKinematics } from "./KinematicsBase";
+import KinematicsBase, { KinematicsName } from "./KinematicsBase";
 import CoreKinematics from "./CoreKinematics";
 import DeltaKinematics from "./DeltaKinematics";
 import HangprinterKinematics from "./HangprinterKinematics";
@@ -34,7 +34,7 @@ export function getKinematics(name: KinematicsName): KinematicsBase {
         case KinematicsName.coreXZ:
         case KinematicsName.markForged:
             return new CoreKinematics(name);
-        case KinematicsName.delta:
+        case KinematicsName.linearDelta:
             return new DeltaKinematics(name);
 	    case KinematicsName.rotaryDelta:
 		    return new Kinematics(name);

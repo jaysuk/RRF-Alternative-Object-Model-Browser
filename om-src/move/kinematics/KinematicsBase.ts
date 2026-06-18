@@ -7,12 +7,12 @@ export enum KinematicsName {
     coreXYUV = "coreXYUV",
     coreXZ = "coreXZ",
     markForged = "markForged",
-    fiveBarScara = "FiveBarScara",
-    hangprinter = "Hangprinter",
-    delta = "delta",
-    polar = "Polar",
-    rotaryDelta = "Rotary delta",
-    scara = "Scara",
+    fiveBarScara = "fiveBarScara",
+    hangprinter = "hangprinter",
+    linearDelta = "linearDelta",
+    polar = "polar",
+    rotaryDelta = "rotaryDelta",
+    scara = "scara",
     unknown = "unknown"
 }
 

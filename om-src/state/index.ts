@@ -54,10 +54,19 @@ export class State extends ModelObject {
     machineMode: MachineMode = MachineMode.fff;
     macroRestarted: boolean = false;
     msUpTime: number = 0;
+    /**
+     * @deprecated use move.motionSystems[].nextTool instead
+     */
     nextTool: number = -1;
     pluginsStarted: boolean = false;
     powerFailScript: string = "";
+    /**
+     * @deprecated use move.motionSystems[].previousTool instead
+     */
     previousTool: number = -1;
+    /**
+     * @deprecated use move.motionSystems[].restorePoints instead
+     */
     readonly restorePoints: ModelCollection<RestorePoint> = new ModelCollection(RestorePoint);
     startupError: StartupError | null = null;
     status: MachineStatus = MachineStatus.starting;

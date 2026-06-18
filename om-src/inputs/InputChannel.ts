@@ -11,7 +11,8 @@ export enum InputChannelState {
     idle = "idle",
     executing = "executing",
     waiting = "waiting",
-    reading = "reading"
+    reading = "reading",
+    unused = "unused"
 }
 
 export class InputChannel extends ModelObject {
