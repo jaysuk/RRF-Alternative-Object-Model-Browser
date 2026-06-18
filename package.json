@@ -1,6 +1,6 @@
 {
   "name": "ombrowser",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Alternative Object Model browser plugin for DuetWebControl (Vue 3).",
   "private": true,
   "license": "LGPL-2.1",
