@@ -23,7 +23,15 @@
         </v-badge>
         <v-icon v-else size="small">mdi-update</v-icon>
       </v-btn>
+      <v-btn icon variant="text" size="small" title="About" @click="aboutOpen = true"><v-icon size="small">mdi-information-outline</v-icon></v-btn>
     </v-toolbar>
+
+    <AboutDialog v-model="aboutOpen" plugin-id="OmBrowser" title="Object Model Browser"
+      :description="aboutDescription" :model="machineStore.model"
+      repo="https://github.com/jaysuk/RRF-Alternative-Object-Model-Browser"
+      :update-available="updateState?.updateAvailable ?? false" :latest-version="updateState?.latestVersion"
+      :checking="checking" :applying="applying" :pending-reload="pendingReload" :auto-check="autoCheck"
+      @check-update="onCheckUpdate" @apply-update="applyUpdateNow" @toggle-auto-check="onToggleAutoCheck" />
 
     <!-- Updates dialog -->
     <v-dialog v-model="updatesOpen" width="560" scrollable>
@@ -334,11 +342,17 @@ import {
   type OmProp,
   type OmDesc,
 } from "./model-data.js";
-import { buildReport, cleanReleaseNotes, copyText as copyToClipboard, downloadReport, fetchReleaseHistory, formatReleaseNotesHtml, installErrorCapture, type ReleaseHistoryEntry } from "dwc-plugin-runtime";
+import { AboutDialog, buildReport, cleanReleaseNotes, copyText as copyToClipboard, downloadReport, fetchReleaseHistory, formatReleaseNotesHtml, installErrorCapture, type ReleaseHistoryEntry } from "dwc-plugin-runtime";
 
 import { applying, checking, pendingReload, runUpdateCheck, setUpdateChecksEnabled, updateChecksEnabled, updateState, applyUpdateNow } from "./updateCheck.js";
 
 const PLUGIN_ID = "OmBrowser";
+
+const aboutOpen = ref(false);
+const aboutDescription = "Browse and watch the RRF object model in real time, with type information and field descriptions.";
+const autoCheck = ref(updateChecksEnabled());
+function onCheckUpdate(): void { void runUpdateCheck({ force: true, notify: true }); }
+function onToggleAutoCheck(v: boolean): void { autoCheck.value = v; setUpdateChecksEnabled(v); }
 
 // ── Pure helpers (no Vue dependency) ──────────────────────────
 function resolveCollectionType(t: string): string | null {
